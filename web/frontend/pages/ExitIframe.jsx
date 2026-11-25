@@ -2,6 +2,7 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Banner, Layout, Page } from "@shopify/polaris";
+import { allowedRedirectUrl } from "../utils/redirectUrl";
 
 export default function ExitIframe() {
   const app = useAppBridge();
@@ -13,13 +14,12 @@ export default function ExitIframe() {
   useEffect(() => {
     if (!!app && !!search) {
       const params = new URLSearchParams(search);
-      const redirectUri = params.get("redirectUri");
-      const url = new URL(decodeURIComponent(redirectUri));
+      const url = allowedRedirectUrl(
+        params.get("redirectUri"),
+        location.hostname
+      );
 
-      if (
-        [location.hostname, "admin.shopify.com"].includes(url.hostname) ||
-        url.hostname.endsWith(".myshopify.com")
-      ) {
+      if (url) {
         window.open(url, "_top");
       } else {
         setShowWarning(true);
