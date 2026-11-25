@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+
+# env files (only the .env.example files are committed)
+.env
+.env.*
+*.env
+!.env.example
+
+# build output
+dist/
+build/
+coverage/
+
+# Shopify CLI
+.shopify/
+
+# database backups and logs
+backups/
+*.log
+
+# OS
+.DS_Store
+
+# ngrok tunnel file
+config/tunnel.pid
+
+# extensions build output
+extensions/*/build
+
+# SQLite session database
+web/database.sqlite
+
+# Shopify files created during app dev
+.shopify.lock
+
+# logs
+logs
