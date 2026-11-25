@@ -32,13 +32,36 @@ tools/verify-slice.sh web/test/project.test.js   # lint + only the given specs
 
 The frontend build needs `SHOPIFY_API_KEY` or `CI` set; without either it stops on purpose (template `vite.config.js`). For a one-off local build use `CI=true`. Do not write the key into any file.
 
-CI (`.github/workflows/ci.yml`) runs `npm ci`, lint, test, build and `npm audit --audit-level=high`. The audit step currently fails on template dev and build dependencies; see the known issues in `docs/plans/01-scaffold/03-acceptance.md`.
+CI (`.github/workflows/ci.yml`) runs `npm ci`, lint, test, build and `npm audit --audit-level=high`. Tests use an in-memory MongoDB (`mongodb-memory-server`), so they need no Docker.
 
 ## 4. Env files
 
-Env variables live only in `web/.env` and `web/frontend/.env`. Each folder has a names-only `.env.example`. Env files are git-ignored and never committed. There is no root env file. During `shopify app dev` the CLI supplies the Shopify values itself.
+The backend reads `web/config/.env` at boot (variables already set in the shell win), validates it, and stops with a message naming each missing or invalid variable. The frontend uses `web/frontend/.env`. Each app folder has a names-only `.env.example`. `web/config/` is git-ignored and never committed. There is no root env file. During `shopify app dev` the CLI supplies the Shopify values and `BACKEND_PORT` itself; `web/config/.env` still needs `MONGO_USERNAME`, `MONGO_PASSWORD`, `MONGO_URI` and `METRICS_TOKEN` (16 or more characters).
 
-## 5. Run on the dev store (owner, manual)
+Create the folder, the env file and the MongoDB keyfile once:
+
+```sh
+mkdir -p web/config
+cp web/.env.example web/config/.env      # then fill in the values
+openssl rand -base64 756 > web/config/mongo-keyfile
+chmod 600 web/config/.env web/config/mongo-keyfile
+```
+
+`MONGO_URI` has the form `mongodb://USER:PASSWORD@localhost:27017/countdown?replicaSet=rs0&authSource=admin`, with the same user and password as `MONGO_USERNAME` and `MONGO_PASSWORD` (URL-encoded). Set `NODE_ENV=production` only on a production host.
+
+## 5. MongoDB (owner, manual)
+
+MongoDB runs in the Docker stack `helixo`, as a single-member replica set `rs0` on port 27017. The stack mounts `web/config/` read-only; on first start its healthcheck initiates the replica set and creates the root user from `MONGO_USERNAME` and `MONGO_PASSWORD`.
+
+1. Start Docker Desktop.
+2. Once per machine: `docker swarm init`.
+3. Start the stack: `docker stack deploy -c docker-compose.yml helixo`.
+4. Check it: `docker service ps helixo_mongo` shows the task `Running`. The healthcheck runs every 10 s with a 40 s start period, so give it up to a minute on first start; `docker ps` then shows the container as `healthy`.
+5. Stop it: `docker stack rm helixo`. The data stays in the named volume.
+
+Containers are started only with `docker stack deploy -c docker-compose.yml helixo`.
+
+## 6. Run on the dev store (owner, manual)
 
 The Shopify CLI is a local dependency (`@shopify/cli` 5.1.0), so you do not install it globally. Run it with `npx shopify` or the npm scripts.
 
@@ -47,12 +70,13 @@ The Shopify CLI is a local dependency (`@shopify/cli` 5.1.0), so you do not inst
 3. Install the app on the dev store: open the preview URL that the CLI prints and approve the install.
 4. Open the app page: in the store admin, go to Apps, open the app, and check that its page loads inside the admin.
 
-Stop the dev server with Ctrl+C.
+5. Check the backend: the boot log has a line `"msg":"Listening"` with the backend `port`. Then:
 
-## 6. Containers
+   ```sh
+   curl -i http://localhost:<port>/health   # 200, {"success":true,"message":"OK",...}
+   curl -i http://localhost:<port>/ready    # 200 once MongoDB is connected
+   ```
 
-MongoDB and any other containers come in a later plan. They are started only with:
+   `/ready` returns 503 `NOT_READY` while MongoDB is unreachable (for example after `docker stack rm helixo`) and during shutdown; the server keeps running and retries the connection.
 
-```sh
-docker stack deploy -c docker-compose.yml <stack-name>
-```
+Stop the dev server with Ctrl+C. The backend drains requests for up to 10 s, closes MongoDB and exits 0.

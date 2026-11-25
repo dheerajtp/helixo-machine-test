@@ -62,3 +62,25 @@ volumes:
 - The compose block above and `docker-compose.yml` are identical; it has no `env_file` or `environment`.
 - Do NOT run `docker swarm init`, `docker stack deploy` or any other command that starts containers or changes Docker. Report the Docker run as NOT RUN.
 - Append `## Result`.
+
+## Result
+**Changed:** `docker-compose.yml` (new, identical to the approved block), `docker/mongo/health.js`, `web/src/config.js`, `web/src/db/connection.js`, `web/.env.example`, `web/package.json` (added `joi`, `mongoose`, dev `mongodb-memory-server`; removed `cross-env` and the `NODE_ENV=` prefixes), `package-lock.json`, `web/test/{config,db-connection,mongo-health}.test.js`. `.gitignore` already had `web/config/`, so it is unchanged.
+
+**Checks**
+- `npm ci`: PASS
+- `tools/verify-slice.sh`: PASS (lint; 13/13 tests, MongoDB 8.0.4 in memory)
+- `node --check docker/mongo/health.js`: PASS
+- Compose block vs `docker-compose.yml`: identical; no `env_file`/`environment`
+- `npm audit --audit-level=high`: PASS (3 moderate, in web/frontend dependencies)
+- Docker run (`docker stack deploy`, real healthcheck in mongosh): NOT RUN. `health.js` is tested only against a stub.
+
+**Notes**
+- `npm install -w web` also matches the nested `web/frontend` workspace. Use `-w shopify-app-template-node`.
+- `METRICS_TOKEN` is required (the slice only said "min 16"); `web/config/.env` needs it, plus `MONGO_URI`.
+- `NODE_ENV` is no longer set by `serve`: production must set `NODE_ENV=production` in `web/config/.env`. Unset, `web/index.js` serves `frontend/` as in development.
+- One combined shell command (file writes plus checks) was denied by the permission classifier; the files were then written one at a time with the Write tool.
+
+**For slice 02/03**
+- `web/src/config.js`: `loadEnvFile()`, `loadConfig(source)`; keys are the env names, `PORT` already resolves `BACKEND_PORT`. `loadConfig` throws; the caller exits.
+- `web/src/db/connection.js`: `connect(uri, {logger})` (logger needs `warn(string)`; resolves only once connected or after `disconnect()`, so do not await it before listening), `isReady()`, `disconnect()`.
+- `web/index.js` does not load the env file or connect yet (slice 03).

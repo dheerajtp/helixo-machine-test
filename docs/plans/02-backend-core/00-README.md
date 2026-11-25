@@ -22,10 +22,10 @@ Master plan: [`../../PLAN.md`](../../PLAN.md) · Builds on: [01](../01-scaffold/
 | B12 | **Template demo routes** (`/api/products*`) keep their current response shape until plan 05 removes the demo page. `/metrics` returns Prometheus text, not the envelope. Rate limiting (and `express-rate-limit`) is added in plan 03. |
 
 ## Status
-- [ ] 01 — Config, Docker replica set, Mongo connection
-- [ ] 02 — Envelope, errors, validation, request ID, logging
-- [ ] 03 — Security middleware, health, metrics, shutdown, app wiring
-- [ ] 04 — Acceptance
+- [x] 01 — Config, Docker replica set, Mongo connection
+- [x] 02 — Envelope, errors, validation, request ID, logging
+- [x] 03 — Security middleware, health, metrics, shutdown, app wiring
+- [x] 04 — Acceptance
 
 ## Dependencies and parallel tracks
 | Slice | Prerequisites | Parallel with | Model | Files touched |
@@ -38,7 +38,7 @@ Master plan: [`../../PLAN.md`](../../PLAN.md) · Builds on: [01](../01-scaffold/
 **Rules for every slice:** follow `CLAUDE.md` and `CLAUDE_BACKEND_MONGODB.md`; never commit.
 
 ## Acceptance checklist
-- [ ] `curl /health` returns 200; `/ready` returns 503 when Mongo is stopped
-- [ ] Invalid input returns the error envelope with field details
-- [ ] Missing env var stops the boot with a clear message
-- [ ] Ctrl+C closes cleanly
+- [x] `curl /health` returns 200; `/ready` returns 503 when Mongo is stopped
+- [x] Invalid input returns the error envelope with field details (tests only; no real route validates yet)
+- [x] Missing env var stops the boot with a clear message
+- [x] Ctrl+C closes cleanly (SIGINT, MongoDB unreachable)

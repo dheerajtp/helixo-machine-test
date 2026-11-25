@@ -25,3 +25,27 @@ From the repo root run `grep -E '^\| (B1|B4|B5|B6|B12) ' docs/plans/02-backend-c
 ## Done when
 - `npm ci` and `tools/verify-slice.sh` pass.
 - Append `## Result` with the exported names for slice 03.
+
+## Result
+**Changed:** `web/src/http/{responses,errors,errorHandler,asyncHandler,validate,requestId,logger}.js` (new), `web/test/http.test.js` (new), `web/package.json` and `package-lock.json` (added `pino`).
+
+**Checks**
+- `npm ci`: PASS
+- `tools/verify-slice.sh`: PASS (lint; 25/25 tests)
+- `npm audit --audit-level=high`: PASS
+
+**Exports for slice 03**
+- `responses.js`: `sendSuccess(res, {status, message, data, pagination})`, `sendError(res, {status, code, message, details})` (status defaults from the code).
+- `errors.js`: `ERROR_STATUS`, `AppError(code, message, details)` (unknown code throws).
+- `errorHandler.js`: `notFound` (mount with `app.use("/api", notFound)`), `errorHandler(logger)` (factory; mount last).
+- `asyncHandler.js`: `asyncHandler(fn)`.
+- `validate.js`: `validate({body, query, params, headers})`; output in `req.validated`.
+- `requestId.js`: `requestId` middleware (mount first).
+- `logger.js`: `createLogger(destination?)`, `requestLogger(logger)`. The pino logger works as `connect()`'s `logger`.
+
+**Notes**
+- `requestId` must run before anything that calls `sendSuccess`/`sendError`.
+- Operator-key rejection applies to the sources that have a schema (only those reach `req.validated`).
+- Redaction matches exact key names down to three levels of nesting.
+- `helmet`, `prom-client` are not installed yet (slice 03).
+- The "headers already sent" test prints an `Error: late` stack from Express's default handler; expected.
