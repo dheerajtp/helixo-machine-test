@@ -36,7 +36,7 @@ CI (`.github/workflows/ci.yml`) runs `npm ci`, lint, test, build and `npm audit 
 
 ## 4. Env files
 
-The backend reads `web/config/.env` at boot (variables already set in the shell win), validates it, and stops with a message naming each missing or invalid variable. The frontend uses `web/frontend/.env`. Each app folder has a names-only `.env.example`. `web/config/` is git-ignored and never committed. There is no root env file. During `shopify app dev` the CLI supplies the Shopify values and `BACKEND_PORT` itself; `web/config/.env` still needs `MONGO_USERNAME`, `MONGO_PASSWORD`, `MONGO_URI` and `METRICS_TOKEN` (16 or more characters).
+The backend reads `web/config/.env` at boot (variables already set in the shell win), validates it, and stops with a message naming each missing or invalid variable. The frontend uses `web/frontend/.env`. Each app folder has a names-only `.env.example`. `web/config/` is git-ignored and never committed. There is no root env file. During `shopify app dev` the CLI supplies the Shopify values and `BACKEND_PORT` itself; `web/config/.env` still needs `MONGO_USERNAME`, `MONGO_PASSWORD`, `MONGO_APP_USERNAME`, `MONGO_APP_PASSWORD`, `MONGO_URI` and `METRICS_TOKEN` (16 or more characters).
 
 Create the folder, the env file and the MongoDB keyfile once:
 
@@ -47,11 +47,11 @@ openssl rand -base64 756 > web/config/mongo-keyfile
 chmod 600 web/config/.env web/config/mongo-keyfile
 ```
 
-`MONGO_URI` has the form `mongodb://USER:PASSWORD@localhost:27017/countdown?replicaSet=rs0&authSource=admin`, with the same user and password as `MONGO_USERNAME` and `MONGO_PASSWORD` (URL-encoded). Set `NODE_ENV=production` only on a production host.
+`MONGO_URI` has the form `mongodb://APP_USER:APP_PASSWORD@localhost:27017/countdown?replicaSet=rs0&authSource=admin`, with the same user and password as `MONGO_APP_USERNAME` and `MONGO_APP_PASSWORD` (URL-encoded). The app user has `readWrite` on `countdown` only; `MONGO_USERNAME` is the root user, for administration. Set `NODE_ENV=production` only on a production host.
 
 ## 5. MongoDB (owner, manual)
 
-MongoDB runs in the Docker stack `helixo`, as a single-member replica set `rs0` on port 27017. The stack mounts `web/config/` read-only; on first start its healthcheck initiates the replica set and creates the root user from `MONGO_USERNAME` and `MONGO_PASSWORD`.
+MongoDB runs in the Docker stack `helixo`, as a single-member replica set `rs0` on port 27017. The stack mounts `web/config/` read-only; on first start its healthcheck initiates the replica set and creates the root user from `MONGO_USERNAME` and `MONGO_PASSWORD` and the app user from `MONGO_APP_USERNAME` and `MONGO_APP_PASSWORD`. Changing a password in the env file does not change it in an existing database.\n\nKnown limits: port 27017 is published on all network interfaces (Swarm cannot bind a published port to one address), and the container can read all of `web/config/`. Remove the stack when you are not developing.
 
 1. Start Docker Desktop.
 2. Once per machine: `docker swarm init`.
