@@ -6,6 +6,22 @@ import { sendError } from "../http/responses.js";
 // Hashing gives equal-length inputs for timingSafeEqual.
 const digest = (value) => createHash("sha256").update(value).digest();
 
+// Express restores req.baseUrl when an error leaves a router, so the mount is
+// captured when the route matches (req.route is assigned there, inside the router).
+function trackRoute(req) {
+  let route;
+  let mount = "";
+  Object.defineProperty(req, "route", {
+    configurable: true,
+    get: () => route,
+    set(value) {
+      route = value;
+      mount = (req.baseUrl ?? "").toLowerCase();
+    },
+  });
+  return () => (route ? `${mount}${String(route.path)}` : "unmatched");
+}
+
 export function createMetrics(token) {
   const registry = new Registry();
   const labelNames = ["method", "route", "status"];
@@ -27,11 +43,12 @@ export function createMetrics(token) {
   return {
     timer(req, res, next) {
       const end = duration.startTimer();
+      const routeLabel = trackRoute(req);
       res.once("close", () => {
         // Route patterns only: raw paths would create unbounded label values.
         const labels = {
           method: req.method,
-          route: req.route ? String(req.route.path) : "unmatched",
+          route: routeLabel(),
           status: res.statusCode,
         };
         end(labels);

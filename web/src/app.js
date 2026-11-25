@@ -11,6 +11,7 @@ import { createApiRateLimiter } from "./http/rateLimit.js";
 import { requestId } from "./http/requestId.js";
 import { health, ready } from "./ops/health.js";
 import { createMetrics } from "./ops/metrics.js";
+import { createTimersRouter } from "./routes/timers.js";
 import { privacyWebhookHandlers } from "./webhooks/privacy.js";
 
 export function createApp({ shopify, config, logger, isShuttingDown, isDbReady }) {
@@ -89,6 +90,8 @@ export function createApp({ shopify, config, logger, isShuttingDown, isDbReady }
     }
     res.status(status).send({ success: status === 200, error });
   });
+
+  app.use("/api/timers", createTimersRouter());
 
   app.use("/api", notFound);
 

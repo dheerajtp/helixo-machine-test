@@ -22,7 +22,7 @@ Master plan: [`../../PLAN.md`](../../PLAN.md) · Builds on: [06](../06-admin-for
 ## Dependencies and parallel tracks
 | Slice | Prerequisites | Parallel with | Model | Files touched |
 | --- | --- | --- | --- | --- |
-| 01 | none | none | Sonnet | `web/src/**/impression*`, `web/src/**/stats*`, `web/src/migrations/**`, `web/src/webhooks/**`, `web/src/services/timer*`, `docs/api.md` |
+| 01 | none | none | Sonnet | `web/src/**/impression*`, `web/src/**/stats*`, `web/migrations/**`, `web/src/webhooks/**`, `web/src/services/shopDataService.js`, `web/src/services/timer*`, `docs/api.md` |
 | 02 | 01 | none | Sonnet | `widget/src/**`, `web/frontend/**` |
 | 03 | all above | none | Opus | this plan folder, `docs/**` |
 
