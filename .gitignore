@@ -21,3 +21,18 @@ backups/
 
 # OS
 .DS_Store
+
+# ngrok tunnel file
+config/tunnel.pid
+
+# extensions build output
+extensions/*/build
+
+# SQLite session database
+web/database.sqlite
+
+# Shopify files created during app dev
+.shopify.lock
+
+# logs
+logs

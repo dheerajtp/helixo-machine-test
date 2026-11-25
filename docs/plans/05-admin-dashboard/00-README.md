@@ -15,6 +15,8 @@ Master plan: [`../../PLAN.md`](../../PLAN.md) · Builds on: [04](../04-timer-api
 | E5 | **UI approval gate.** Before any UI code, the owner must approve a reference image (see `CLAUDE.md`), saved in `docs/ui/`. UI slices reply BLOCKED if the approved image is missing. |
 | E6 | **Confirmations** (delete and other destructive actions) use the Polaris modal; no custom React Portal modal. |
 | E7 | **English only.** No translation library or translation setup. |
+| E8 | **Admin reference.** Follow `docs/ui/admin-reference.png` (title, create button, search, sort, list rows with actions menu; create form in a modal with name, start/end date and time, description, color picker, size, position, urgency effect). It overrides earlier decisions here where they differ. Fields the PRD needs but the image lacks require a new approved image first. |
+| E9 | **List (owner decision).** Rows follow the reference, with name search and start-date sort, and show each timer's impression count (data arrives in plan 09). |
 
 ## Status
 - [ ] 01 — App shell and API client

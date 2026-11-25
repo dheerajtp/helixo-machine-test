@@ -10,16 +10,16 @@ Master plan: [`../../PLAN.md`](../../PLAN.md) · Builds on: nothing
 | # | Decision |
 | --- | --- |
 | A1 | **Layout.** From `Shopify/shopify-app-template-node`: backend `web/` (code in `web/src/`), admin UI `web/frontend/`, theme extension `extensions/countdown-timer/`, widget source `widget/`. |
-| A2 | **Runtime.** Node 22 LTS pinned in `.nvmrc` and `engines`; npm with committed lockfile; JavaScript everywhere (ESM). |
-| A3 | **Template check first.** Slice 01 checks the template and Shopify CLI against current shopify.dev docs. If the template is archived or incompatible, reply BLOCKED with the options. |
+| A2 | **Runtime.** Node 26 LTS pinned in `.nvmrc` and `engines`; npm with committed lockfile; JavaScript everywhere (ESM). |
+| A3 | **Archived template (owner decision).** Use `Shopify/shopify-app-template-node` although it is archived. Upgrade its Shopify CLI and server packages to current versions (this approves those major upgrades). Do not switch templates. README states that it is archived. |
 | A4 | **Tooling.** ESLint (flat config); tests with built-in `node:test` plus `supertest`; `tools/verify-slice.sh [spec files]` runs lint then those tests (all tests if none given) and prints PASS/FAIL lines. |
 | A5 | **CI.** GitHub Actions: `npm ci`, lint, test, build, `npm audit --audit-level=high`. |
 | A6 | **Secrets.** `.gitignore` covers env files but keeps `.env.example`; env variables are defined only in `web/` and `web/frontend/`, each with a names-only `.env.example`; no root env file. A root `.gitignore` already exists: merge the template's entries into it, never overwrite it. |
 
 ## Status
-- [ ] 01 — Scaffold from template, pin Node, ignore files
-- [ ] 02 — ESLint, test runner, verify script, CI
-- [ ] 03 — Acceptance
+- [x] 01 — Scaffold from template, pin Node, ignore files (gated with npm ci and CI=true build; verify script arrives in slice 02)
+- [x] 02 — ESLint, test runner, verify script, CI
+- [x] 03 — Acceptance
 
 ## Dependencies and parallel tracks
 | Slice | Prerequisites | Parallel with | Model | Files touched |
@@ -31,7 +31,7 @@ Master plan: [`../../PLAN.md`](../../PLAN.md) · Builds on: nothing
 **Rules for every slice:** follow `CLAUDE.md` and `CLAUDE_BACKEND_MONGODB.md`; never commit.
 
 ## Acceptance checklist
-- [ ] `npm ci && npm run lint && npm test && npm run build` pass
-- [ ] `tools/verify-slice.sh` prints PASS
-- [ ] MANUAL: `shopify app dev` installs the app on your dev store and its page opens
-- [ ] No secret is tracked by git
+- [x] `npm ci && npm run lint && npm test && npm run build` pass (build run with `CI=true`; without it or `SHOPIFY_API_KEY` the template build stops)
+- [x] `tools/verify-slice.sh` prints PASS
+- [x] MANUAL: `shopify app dev` installs the app on your dev store and its page opens (owner screenshot, 2026-11-25)
+- [x] No secret is tracked by git
