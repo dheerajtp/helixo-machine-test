@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  mongo:
+    image: mongo:8.0
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        install -m 400 -o mongodb -g mongodb /run/config/mongo-keyfile /tmp/keyfile
+        exec docker-entrypoint.sh mongod --replSet rs0 --keyFile /tmp/keyfile --bind_ip_all
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - ./web/config:/run/config:ro
+      - ./docker/mongo:/opt/helixo:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--norc", "/opt/helixo/health.js"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+
+volumes:
+  mongo-data:

@@ -36,3 +36,6 @@ web/database.sqlite
 
 # logs
 logs
+
+# local database config and keys
+web/config/
