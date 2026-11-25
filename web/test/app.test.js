@@ -8,6 +8,8 @@ import { createLogger } from "../src/http/logger.js";
 
 const TOKEN = "test-metrics-token-123";
 const pass = (_req, _res, next) => next();
+const SHOP = "shop1.myshopify.com";
+const AUTH = `Bearer valid:${SHOP}`;
 
 let rawWebhookBody;
 const shopify = {
@@ -25,12 +27,19 @@ const shopify = {
       res.sendStatus(200);
     },
   ],
-  validateAuthenticatedSession: () => (req, res, next) => {
-    if (!req.get("Authorization")) return res.sendStatus(401);
-    res.locals.shopify = { session: {} };
+  // Like the library: the session is the offline one of the token's shop.
+  validateAuthenticatedSession: () => async (req, res, next) => {
+    const payload = await shopify.api.session.decodeSessionToken(req.get("Authorization").slice(7));
+    res.locals.shopify = { session: { shop: new URL(payload.dest).hostname } };
     next();
   },
   api: {
+    session: {
+      decodeSessionToken: async (token) => {
+        if (!token.startsWith("valid:")) throw new Error("invalid");
+        return { dest: `https://${token.slice(6)}` };
+      },
+    },
     clients: {
       Graphql: class {
         async request() {
@@ -95,8 +104,8 @@ test("/metrics needs the bearer token", async () => {
 });
 
 test("metrics are labelled by route pattern, never by raw path", async () => {
-  await api().get("/api/products/count?x=1").set("Authorization", "s").expect(200, { count: 3 });
-  await api().get("/api/raw-path-123").set("Authorization", "s").expect(404);
+  await api().get("/api/products/count?x=1").set("Authorization", AUTH).expect(200, { count: 3 });
+  await api().get("/api/raw-path-123").set("Authorization", AUTH).expect(404);
   const { text } = await api().get("/metrics").set("Authorization", `Bearer ${TOKEN}`);
   assert.match(text, /http_request_duration_seconds_count\{[^}]*route="\/api\/products\/count"/);
   assert.match(text, /http_request_errors_total\{[^}]*route="unmatched",status="404"\} 1/);
@@ -118,8 +127,9 @@ test("helmet headers are set without blocking admin framing or adding CORS", asy
 });
 
 test("unknown /api route: 404 envelope, only after session validation", async () => {
-  await api().get("/api/missing").expect(401);
-  const response = await api().get("/api/missing").set("Authorization", "s").expect(404);
+  const denied = await api().get("/api/missing").expect(401);
+  assert.equal(denied.body.error.code, "UNAUTHORIZED");
+  const response = await api().get("/api/missing").set("Authorization", AUTH).expect(404);
   assert.equal(response.body.error.code, "NOT_FOUND");
   assert.equal(response.body.meta.requestId, response.headers["x-request-id"]);
 });
@@ -127,7 +137,7 @@ test("unknown /api route: 404 envelope, only after session validation", async ()
 test("a body over 32kb is rejected", async () => {
   const response = await api()
     .post("/api/products")
-    .set("Authorization", "s")
+    .set("Authorization", AUTH)
     .send({ x: "a".repeat(33 * 1024) })
     .expect(413);
   assert.equal(response.body.error.code, "PAYLOAD_TOO_LARGE");

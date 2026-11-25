@@ -4,12 +4,14 @@ import express from "express";
 import helmet from "helmet";
 import serveStatic from "serve-static";
 
-import PrivacyWebhookHandlers from "../privacy.js";
+import { attachShop, verifySessionToken } from "./auth/requireShop.js";
 import { errorHandler, notFound } from "./http/errorHandler.js";
 import { requestLogger } from "./http/logger.js";
+import { createApiRateLimiter } from "./http/rateLimit.js";
 import { requestId } from "./http/requestId.js";
 import { health, ready } from "./ops/health.js";
 import { createMetrics } from "./ops/metrics.js";
+import { privacyWebhookHandlers } from "./webhooks/privacy.js";
 
 export function createApp({ shopify, config, logger, isShuttingDown, isDbReady }) {
   const STATIC_PATH =
@@ -38,13 +40,21 @@ export function createApp({ shopify, config, logger, isShuttingDown, isDbReady }
   // Needs the raw body: no JSON parser may run before this.
   app.post(
     shopify.config.webhooks.path,
-    shopify.processWebhooks({ webhookHandlers: PrivacyWebhookHandlers })
+    shopify.processWebhooks({ webhookHandlers: privacyWebhookHandlers(logger) })
   );
 
   // If you are adding routes outside of the /api path, remember to
   // also add a proxy rule for them in web/frontend/vite.config.js
 
-  app.use("/api", shopify.validateAuthenticatedSession());
+  // Token check (401 envelope), the library's session check (its 403 re-authorize stays),
+  // req.shop from the session, then the per-shop limit.
+  app.use(
+    "/api",
+    verifySessionToken(shopify),
+    shopify.validateAuthenticatedSession(),
+    attachShop,
+    createApiRateLimiter()
+  );
 
   app.use(express.json({ limit: "32kb" }));
 

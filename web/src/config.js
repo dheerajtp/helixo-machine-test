@@ -29,8 +29,11 @@ export function loadEnvFile() {
   }
 }
 
-export function loadConfig(source = process.env) {
-  const { value, error } = schema.validate(source, {
+// Scripts run outside `shopify app dev`, which supplies the Shopify values, so they ask only for this.
+const dbSchema = Joi.object({ MONGO_URI: schema.extract("MONGO_URI") });
+
+function validate(target, source) {
+  const { value, error } = target.validate(source, {
     abortEarly: false,
     stripUnknown: true,
     convert: true,
@@ -41,5 +44,14 @@ export function loadConfig(source = process.env) {
       `Invalid configuration: ${error.details.map((d) => d.message).join("; ")}`
     );
   }
+  return value;
+}
+
+export function loadConfig(source = process.env) {
+  const value = validate(schema, source);
   return Object.freeze({ ...value, PORT: value.BACKEND_PORT ?? value.PORT });
+}
+
+export function loadDbConfig(source = process.env) {
+  return Object.freeze(validate(dbSchema, source));
 }
