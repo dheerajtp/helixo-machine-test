@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { loadConfig } from "../src/config.js";
+import { loadConfig, loadDbConfig } from "../src/config.js";
 
 const valid = {
   SHOPIFY_API_KEY: "key",
@@ -51,4 +51,10 @@ test("errors name the variable and never include values", () => {
       return true;
     }
   );
+});
+
+test("scripts need only MONGO_URI", () => {
+  const { MONGO_URI } = valid;
+  assert.deepEqual({ ...loadDbConfig({ MONGO_URI, PATH: "/bin" }) }, { MONGO_URI });
+  assert.throws(() => loadDbConfig({}), /"MONGO_URI" is required/);
 });

@@ -1,8 +1,7 @@
 import { ApiVersion, BillingInterval } from "@shopify/shopify-api";
 import { shopifyApp } from "@shopify/shopify-app-express";
-import { SQLiteSessionStorage } from "@shopify/shopify-app-session-storage-sqlite";
 
-const DB_PATH = `${process.cwd()}/database.sqlite`;
+import { sessionStorage } from "./src/repositories/sessionRepository.js";
 
 // The transactions with Shopify will always be marked as test transactions, unless NODE_ENV is production.
 // See the ensureBilling helper to learn more about billing in this template.
@@ -31,8 +30,9 @@ const shopify = shopifyApp({
   webhooks: {
     path: "/api/webhooks",
   },
-  // This should be replaced with your preferred storage strategy
-  sessionStorage: new SQLiteSessionStorage(DB_PATH),
+  sessionStorage,
+  // Read by shopify-app-express (top-level config), which passes `expiring` to shopify-api's token calls.
+  future: { expiringOfflineAccessTokens: true },
 });
 
 export default shopify;

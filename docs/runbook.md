@@ -51,7 +51,9 @@ chmod 600 web/config/.env web/config/mongo-keyfile
 
 ## 5. MongoDB (owner, manual)
 
-MongoDB runs in the Docker stack `helixo`, as a single-member replica set `rs0` on port 27017. The stack mounts `web/config/` read-only; on first start its healthcheck initiates the replica set and creates the root user from `MONGO_USERNAME` and `MONGO_PASSWORD` and the app user from `MONGO_APP_USERNAME` and `MONGO_APP_PASSWORD`. Changing a password in the env file does not change it in an existing database.\n\nKnown limits: port 27017 is published on all network interfaces (Swarm cannot bind a published port to one address), and the container can read all of `web/config/`. Remove the stack when you are not developing.
+MongoDB runs in the Docker stack `helixo`, as a single-member replica set `rs0` on port 27017. The stack mounts `web/config/` read-only; on first start its healthcheck initiates the replica set and creates the root user from `MONGO_USERNAME` and `MONGO_PASSWORD` and the app user from `MONGO_APP_USERNAME` and `MONGO_APP_PASSWORD`. Changing a password in the env file does not change it in an existing database.
+
+Known limits: port 27017 is published on all network interfaces (Swarm cannot bind a published port to one address), and the container can read all of `web/config/`. Remove the stack when you are not developing.
 
 1. Start Docker Desktop.
 2. Once per machine: `docker swarm init`.
@@ -80,3 +82,12 @@ The Shopify CLI is a local dependency (`@shopify/cli` 5.1.0), so you do not inst
    `/ready` returns 503 `NOT_READY` while MongoDB is unreachable (for example after `docker stack rm helixo`) and during shutdown; the server keeps running and retries the connection.
 
 Stop the dev server with Ctrl+C. The backend drains requests for up to 10 s, closes MongoDB and exits 0.
+
+## 7. Auth, sessions and webhooks (owner, manual, plan 03)
+
+1. **Migrations.** With MongoDB up (section 5), run once: `npm run migrate -w shopify-app-template-node`. It applies pending migrations from `web/migrations/` and records them in the `migrations` collection; running it again does nothing. `npm run migrate -w shopify-app-template-node -- down` reverses the last applied one. The app builds no indexes at boot (`autoIndex` off), so run this before using the app.
+2. **Authorize again.** Sessions now live in MongoDB (`shopify_sessions`); the old SQLite sessions were not migrated. Open the app on the dev store and approve it again. `web/database.sqlite` is no longer used and can be deleted.
+3. **Scopes.** The app asks only for `read_products`. Where the Shopify CLI does not inject it, set `SCOPES=read_products` in `web/config/.env`. The scope change needs re-approval on the dev store. The template's "populate products" demo fails until plan 05 removes it.
+4. **Webhooks.** `app/uninstalled` and the compliance topics (`customers/data_request`, `customers/redact`, `shop/redact`) are declared in `shopify.app.toml` with `uri = "/api/webhooks"`; for local work `npm run dev` should apply them to the dev store using its tunnel URL (not yet verified). Do not run `npm run deploy` until the app has a hosted URL: it resolves `/api/webhooks` against `application_url`, still a placeholder, and Shopify rejects the version. Every delivery is HMAC-verified (bad signature: 401). Check: uninstall the app on the dev store and confirm the shop has no documents left in `shopify_sessions`.
+5. **Rate limit.** `/api/*` allows 100 requests per minute per shop, then 429 `RATE_LIMITED`. Webhooks and OAuth are not limited. The counter is in memory: it resets on restart and is per process, so with more than one instance each one counts separately.
+6. **Network access.** Shopify's network access declaration for the app is set by the owner in the Dev Dashboard; it is not verified here.

@@ -6,7 +6,8 @@
   "scripts": {
     "debug": "node --inspect-brk index.js",
     "dev": "node --watch index.js",
-    "serve": "node index.js"
+    "serve": "node index.js",
+    "migrate": "node scripts/migrate.js"
   },
   "type": "module",
   "engines": {
@@ -15,9 +16,9 @@
   "dependencies": {
     "@shopify/shopify-api": "^15.1.2",
     "@shopify/shopify-app-express": "^8.0.6",
-    "@shopify/shopify-app-session-storage-sqlite": "^8.0.4",
     "compression": "^1.7.4",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.5",
     "helmet": "^8.3.0",
     "joi": "^18.3.2",
     "mongoose": "^9.13.1",
