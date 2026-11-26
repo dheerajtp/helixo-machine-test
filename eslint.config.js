@@ -28,13 +28,5 @@ export default defineConfig(
   {
     files: ["web/privacy.js", "web/shopify.js"],
     rules: { "no-unused-vars": "off" },
-  },
-  {
-    files: ["web/product-creator.js"],
-    rules: { "preserve-caught-error": "off" },
-  },
-  {
-    files: ["web/frontend/utils/i18nUtils.js"],
-    languageOptions: { globals: { process: "readonly" } },
   }
 );

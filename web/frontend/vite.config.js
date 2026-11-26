@@ -56,7 +56,8 @@ export default defineConfig({
     hmr: hmrConfig,
     proxy: {
       "^/(\\?.*)?$": proxyOptions,
-      "^/api(/|(\\?.*)?$)": proxyOptions,
+      // The lookahead keeps this app's own source files in ./api/ on the Vite server.
+      "^/api(?![^?]*\\.js(\\?|$))(/|(\\?.*)?$)": proxyOptions,
     },
   },
 });
