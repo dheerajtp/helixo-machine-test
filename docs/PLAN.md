@@ -17,3 +17,4 @@ Product and rules: [`../CLAUDE.md`](../CLAUDE.md). Run one plan at a time; the o
 | 10 | [Operations and delivery](plans/10-ops-delivery/00-README.md) | 09 |
 | 11 | [Live form validation](plans/11-form-validation/00-README.md) | 06 |
 | 12 | [No gap on untargeted products](plans/12-no-gap/00-README.md) | 07, 08 |
+| 13 | [Rate-limit ceiling, backup and restore](plans/13-hardening/00-README.md) | 07, 09 |

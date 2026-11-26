@@ -15,7 +15,7 @@ Master plan: [`../../PLAN.md`](../../PLAN.md) · Builds on: [09](../09-analytics
 | J5 | **Final audit** against rules §21 and every PRD requirement. |
 
 ## Status
-- [ ] 01 — Backup and restore scripts, operations doc
+- [ ] 01 — Backup and restore scripts, operations doc — done by [plan 13](../13-hardening/00-README.md) (slices 13/02 and 13/03)
 - [ ] 02 — README and API docs
 - [ ] 03 — Acceptance
 
