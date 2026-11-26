@@ -21,3 +21,21 @@ H3, H4, H5, H9, H12: run `grep -E '^\| H(3|4|5|9|12) ' docs/plans/08-widget/00-R
 ## Done when
 - `tools/verify-slice.sh widget/test/logic*.test.js` passes (slice 02 adds widget tests to `npm test`).
 - Append `## Result` listing the exports.
+
+## Result
+
+**Files:** `widget/src/logic/{api,time,evergreen,color}.js`, `widget/test/logic-api.test.js`, `widget/test/logic-time.test.js`.
+
+**Exports.**
+- `api.js`: `fetchTimer({ productId, collectionIds = [], fetch, now = Date.now, timeoutMs = 3000 })` → `Promise<{ timer, offsetMs } | null>`, never rejects. `timer` is the API's `data`; `offsetMs` is server minus shopper clock. Ids may be numbers or numeric strings.
+- `time.js`: `fixedEndMs(endAt, offsetMs)`, `remainingSeconds(endMs, nowMs)` (rounded up, never below 0), `splitTime(seconds)` → `{ days, hours, minutes, seconds }`, `isUrgent(remaining, thresholdSeconds)`.
+- `evergreen.js`: `evergreenEndMs(timer, scope, nowMs)` → end time in epoch ms. Pass `window` as `scope` (not `window.localStorage`, whose getter throws when storage is blocked). A past value means hidden for this session.
+- `color.js`: `textColor("#rrggbb")` → `"#000000"` or `"#ffffff"`.
+
+**For slice 03.** End time: `timer.type === "fixed" ? fixedEndMs(timer.endAt, offsetMs) : evergreenEndMs(timer, window)`. Call `evergreenEndMs` once per page load, then tick with `remainingSeconds(endMs, Date.now())`; render nothing when it is 0. `offsetMs` does not apply to evergreen.
+
+**Limits.** `sessionStorage` is per tab, so a new tab counts as a new session (H4 as written). With the `Date` header's 1 s resolution, fixed countdowns can differ from the server by about 1 s.
+
+**Checks.**
+- `tools/verify-slice.sh widget/test/logic*.test.js` → LINT: PASS, TESTS: PASS (16 pass, 0 fail), after slice 02's `eslint.config.js` change landed (before it, lint failed only on `no-undef` for browser globals under `widget/`).
+- Not checked: a real browser (storage, `no-cache` revalidation, `Date` header through the app proxy).

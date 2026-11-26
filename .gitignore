@@ -27,6 +27,9 @@ config/tunnel.pid
 
 # extensions build output
 extensions/*/build
+# widget bundle, built by predev and predeploy
+extensions/countdown-timer/assets/countdown-timer.js
+extensions/countdown-timer/assets/countdown-timer.css
 
 # SQLite session database
 web/database.sqlite

@@ -205,3 +205,33 @@ Report any step that fails, and especially these, which no slice could check aga
 - The response time shown in the Network tab (the app itself answers in under 5 ms locally; the rest is Shopify and the tunnel).
 - The `X-Forwarded-For` header Shopify sends (only visible in the backend; the per-IP rate limit depends on its first entry).
 
+
+## 12. Storefront widget (owner, manual, plan 08)
+
+Needs section 11 working (the endpoint answers through the store). Compare what you see with `docs/ui/widget.png`.
+
+1. **Start.** Run `npm run dev` from the root. Its `predev` step builds the widget into `extensions/countdown-timer/assets/` first; the log shows `Widget size (script + CSS, gzipped): ... KB`. Calling `npx shopify app dev` directly skips that build, and the block then has no script.
+2. **Add the block.** In the store admin go to Online Store > Themes > Customize. Switch the template picker at the top to Products > Default product. In the product information section press Add block > Apps > "Countdown timer", then Save. The block is offered on product templates only. If it is not listed, check that the CLI log says the theme app extension is being served, and use the preview link it prints.
+3. **Create a timer.** In the app, create a fixed timer that is running now with a description, targeting All products (section 10, step 2). Wait up to 60 s for the cache.
+4. **Desktop.** Open the storefront in Safari (enter the storefront password once), then a product page. The countdown shows in digit tiles under the product details and ticks every second; days are hidden when zero; text is black or white, whichever reads better on the background. Edit the timer so it ends within its urgency threshold: the urgency effect shows (none with System Settings > Accessibility > Display > Reduce motion on). An evergreen timer starts at its full duration on the first visit and keeps counting across reloads.
+5. **Phone.** Open the same product page on a phone, or in Safari use Develop > Enter Responsive Design Mode (Ctrl+Cmd+R) and pick an iPhone size. The tiles fit the width with no sideways scroll and the description wraps to at most two lines.
+6. **API down.** Stop MongoDB with `docker stack rm helixo` (the app then answers with an error), reload the product page: the product page works normally, the block area stays as an empty space of the same height, and the Web Inspector console (Cmd+Option+C) shows no error from `countdown-timer.js` (the failed `timer` request itself may show in the Network tab). Start MongoDB again with `docker stack deploy -c docker-compose.yml helixo`. Then stop `npm run dev` with Ctrl+C and reload: same result. (If the block disappears entirely once the dev server stops, that is the CLI's preview ending, not the widget; note it.)
+7. **Measure CLS.** Safari does not report layout shifts, so use Chrome for this step: open the product page, open DevTools (Cmd+Option+J) and paste:
+
+   ```js
+   let cls = 0;
+   new PerformanceObserver((list) => {
+     for (const e of list.getEntries()) if (!e.hadRecentInput) cls += e.value;
+     console.log("CLS", cls.toFixed(4));
+   }).observe({ type: "layout-shift", buffered: true });
+   ```
+
+   Reload the page (paste again after reload) with the timer running, and again with the API down (step 6). Anything the widget causes should keep the value at about 0; a theme's own shifts also count, so compare with the block removed if the number is not 0. Lighthouse (DevTools > Lighthouse > Performance) gives the same figure.
+
+Report any step that fails, and especially these, which no slice could check against a real store:
+
+- Shopify accepts the extension (`shopify.extension.toml`, block schema) and the block can be added on product templates only.
+- The stylesheet applies from first paint (no jump when the timer arrives) and does not clash with the theme.
+- The theme editor: adding, moving and removing the block works without a page reload.
+- The countdown agrees with the server clock to about a second, and a reload within 60 s shows a `304` for `timer` in the Network tab.
+- Quick view or variant changes that re-render the product section.

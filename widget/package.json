@@ -1,0 +1,19 @@
+{
+  "name": "countdown-timer-widget",
+  "version": "1.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "build": "vite build && node scripts/check-size.js"
+  },
+  "engines": {
+    "node": ">=26 <27"
+  },
+  "dependencies": {
+    "preact": "^11.2.0"
+  },
+  "devDependencies": {
+    "vite": "^6.4.6"
+  }
+}

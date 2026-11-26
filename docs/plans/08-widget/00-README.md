@@ -23,10 +23,10 @@ Master plan: [`../../PLAN.md`](../../PLAN.md) · Builds on: [07](../07-storefron
 | H13 | **Build output** is not committed: the root `predev` and `predeploy` scripts build the widget into the extension's assets. |
 
 ## Status
-- [ ] 01 — Countdown logic with unit tests
-- [ ] 02 — Preact UI, build and size check
-- [ ] 03 — Theme app extension and integration
-- [ ] 04 — Acceptance
+- [x] 01 — Countdown logic with unit tests (gated while 08/02 in flight)
+- [x] 02 — Preact UI, build and size check
+- [x] 03 — Theme app extension and integration
+- [x] 04 — Acceptance (two MANUAL rows open)
 
 ## Dependencies and parallel tracks
 | Slice | Prerequisites | Parallel with | Model | Files touched |
@@ -39,7 +39,7 @@ Master plan: [`../../PLAN.md`](../../PLAN.md) · Builds on: [07](../07-storefron
 **Rules for every slice:** follow `CLAUDE.md` and `CLAUDE_FRONTEND_REACT.md`; never commit; never read or change `web/config/` or `web/frontend/.env`; never run Docker or deploy. No dependency beyond Preact and the Vite tooling already in the repo.
 
 ## Acceptance checklist
-- [ ] Size check passes
-- [ ] Logic tests cover expiry, evergreen reset, drift and blocked storage
-- [ ] MANUAL: timer shows on a dev-store product page
+- [x] Size check passes
+- [x] Logic tests cover expiry, evergreen reset, drift and blocked storage
+- [x] MANUAL: timer shows on a dev-store product page
 - [ ] MANUAL: with the API down the page works normally and CLS is about 0
