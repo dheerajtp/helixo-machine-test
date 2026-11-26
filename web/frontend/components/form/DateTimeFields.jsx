@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useElementEvent } from "../../utils/useElementEvent";
 
 // Polaris web components have no time field, so the time is a text field.
-export function DateTimeFields({ edge, label, form, errors, onChange }) {
+export function DateTimeFields({ edge, label, allow, form, errors, onChange }) {
   const dateRef = useRef(null);
   useElementEvent(dateRef, "change", (event) => onChange({ [`${edge}Date`]: event.currentTarget.value }));
 
@@ -12,6 +12,7 @@ export function DateTimeFields({ edge, label, form, errors, onChange }) {
         ref={dateRef}
         label={`${label} date`}
         required
+        allow={allow}
         value={form[`${edge}Date`]}
         error={errors[`${edge}Date`]}
       ></s-date-field>

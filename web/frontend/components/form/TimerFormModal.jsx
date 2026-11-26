@@ -69,7 +69,7 @@ export function TimerFormModal({ modalRef, session, onSaved }) {
 
   const submit = () => {
     if (save.isLoading) return;
-    const found = validateForm(form);
+    const found = validateForm(form, session.timer);
     setState((current) => ({ ...current, errors: found, failure: null }));
     if (Object.keys(found).length === 0) {
       save.mutate({ timer: session.timer, payload: buildPayload(form, session.timer) });
@@ -93,7 +93,11 @@ export function TimerFormModal({ modalRef, session, onSaved }) {
         <s-stack key={state.id} gap="base">
           {failure && <s-banner tone="critical" heading={failure}></s-banner>}
           <BasicFields {...fields} typeLocked={isEdit} />
-          {form.type === "fixed" ? <ScheduleFields {...fields} /> : <DurationFields {...fields} />}
+          {form.type === "fixed" ? (
+            <ScheduleFields {...fields} openedStartDate={initial.startDate} />
+          ) : (
+            <DurationFields {...fields} />
+          )}
           <s-text-area
             label="Promotion description"
             placeholder="Enter promotion details"

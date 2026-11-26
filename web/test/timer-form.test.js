@@ -17,8 +17,11 @@ import { timerSchema } from "../src/validators/timerDocument.js";
 // UTC+05:30, so a local/UTC mix-up cannot pass unnoticed.
 process.env.TZ = "Asia/Kolkata";
 
+// 10:00 local, before every start used below.
+const NOW = new Date("2026-11-26T04:30:00.000Z");
+
 const fixed = (changes) => ({
-  ...emptyForm(),
+  ...emptyForm(NOW),
   name: "Sale",
   startDate: "2026-11-29",
   startTime: "12:00 AM",
@@ -77,8 +80,8 @@ test("create payload is accepted by the API schema and has no null fields", () =
 });
 
 test("validation mirrors the API limits", () => {
-  assert.deepEqual(validateForm(fixed()), {});
-  assert.equal(validateForm(fixed({ endDate: "2026-11-28" })).endDate, "End must be after start");
+  assert.deepEqual(validateForm(fixed(), undefined, NOW), {});
+  assert.equal(validateForm(fixed({ endDate: "2026-11-28" }), undefined, NOW).endDate, "End must be after start");
   const errors = validateForm(
     fixed({
       name: "  ",
@@ -87,7 +90,9 @@ test("validation mirrors the API limits", () => {
       targetType: "collections",
       backgroundColor: "red",
       urgencyMinutes: "1441",
-    })
+    }),
+    undefined,
+    NOW
   );
   assert.deepEqual(Object.keys(errors).sort(), [
     "backgroundColor",
@@ -181,9 +186,32 @@ test("createTimer posts the timer", async () => {
   assert.deepEqual(calls, [["/api/timers", { method: "POST", body: { name: "Sale" }, signal: undefined }]]);
 });
 
-test("a new form starts with whole-day times, so only the dates are needed", () => {
-  const form = { ...emptyForm(), name: "Sale", startDate: "2026-11-25", endDate: "2026-11-27" };
-  assert.equal(form.startTime, "12:00 AM");
-  assert.equal(form.endTime, "11:59 PM");
-  assert.deepEqual(validateForm(form), {});
+test("a new form starts at the next 5-minute mark, so only the end date is needed", () => {
+  const form = { ...emptyForm(NOW), name: "Sale", endDate: "2026-11-27" };
+  assert.deepEqual([form.startDate, form.startTime, form.endTime], ["2026-11-26", "10:05 AM", "11:59 PM"]);
+  assert.deepEqual(validateForm(form, undefined, NOW), {});
+
+  const late = emptyForm(new Date(2026, 10, 26, 23, 58, 30));
+  assert.deepEqual([late.startDate, late.startTime, late.endDate], ["2026-11-27", "12:00 AM", ""]);
+});
+
+test("a new or changed start may not be in the past", () => {
+  const now = new Date(NOW.getTime() + 30_000);
+  const check = (changes, timer) => {
+    const { startDate, startTime } = validateForm(fixed(changes), timer, now);
+    return { startDate, startTime };
+  };
+  const ok = { startDate: undefined, startTime: undefined };
+  const past = "Start cannot be in the past";
+  for (const startTime of ["10:00 AM", "10:01 AM"]) {
+    assert.deepEqual(check({ startDate: "2026-11-26", startTime }), ok);
+  }
+  assert.deepEqual(check({ startDate: "2026-11-26", startTime: "9:55 AM" }), { ...ok, startTime: past });
+  assert.deepEqual(check({ startDate: "2026-11-25", startTime: "11:00 PM" }), { ...ok, startDate: past });
+
+  const running = { ...stored, startAt: "2026-11-01T00:00:30.000Z" };
+  const form = formFromTimer(running);
+  assert.deepEqual(validateForm(form, running, now), {});
+  assert.equal(validateForm({ ...form, startTime: "4:00 AM" }, running, now).startDate, past);
+  assert.equal(validateForm({ ...form, startDate: "2026-10-31" }, running, now).startDate, past);
 });

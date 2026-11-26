@@ -8,11 +8,18 @@ export const TARGETS_MAX = 100;
 const HEX = /^#[0-9a-f]{6}$/i;
 const CONTROL = /\p{Cc}/u;
 
-export const emptyForm = () => ({
+// A new timer starts at the next 5-minute mark, which may be tomorrow.
+function nextStart(now) {
+  const date = new Date(now);
+  date.setMinutes(date.getMinutes() - (date.getMinutes() % 5) + 5, 0, 0);
+  return localDateTime(date.toISOString());
+}
+
+export const emptyForm = (now = new Date(), start = nextStart(now)) => ({
   name: "",
   type: "fixed",
-  startDate: "",
-  startTime: "12:00 AM",
+  startDate: start.date,
+  startTime: start.time,
   endDate: "",
   endTime: "11:59 PM",
   duration: "",
@@ -107,7 +114,8 @@ export const targetIdsOf = (form) => {
   return [];
 };
 
-export function validateForm(form) {
+// Pass the timer being edited, if any.
+export function validateForm(form, timer, now = new Date()) {
   const errors = {};
 
   const name = form.name.trim();
@@ -129,6 +137,13 @@ export function validateForm(form) {
     const start = toIso(form.startDate, form.startTime);
     const end = toIso(form.endDate, form.endTime);
     if (start && end && new Date(end) <= new Date(start)) errors.endDate = "End must be after start";
+    // An untouched stored start passes; a new or changed one may not be before this minute.
+    const original = timer ? formFromTimer(timer) : null;
+    const untouched = original?.startDate === form.startDate && original.startTime === form.startTime;
+    if (start && !untouched && new Date(start) < new Date(now).setSeconds(0, 0)) {
+      const pastDay = form.startDate < localDateTime(new Date(now).toISOString()).date;
+      errors[pastDay ? "startDate" : "startTime"] = "Start cannot be in the past";
+    }
   } else {
     const seconds = toSeconds(form.duration, UNIT_SECONDS[form.durationUnit]);
     if (!(seconds >= 60 && seconds <= 2592000)) errors.duration = "Enter from 1 minute to 30 days";
@@ -217,8 +232,8 @@ export function serverErrors(details = []) {
 
 // Errors that a change to one field makes stale, besides its own.
 const RELATED = {
-  startDate: ["endDate"],
-  startTime: ["endDate"],
+  startDate: ["startTime", "endDate"],
+  startTime: ["startDate", "endDate"],
   endTime: ["endDate"],
   durationUnit: ["duration"],
   targetType: ["targetIds"],

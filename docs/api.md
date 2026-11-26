@@ -60,6 +60,8 @@ Send JSON with `Content-Type: application/json`. Unknown fields, including `shop
 
 Responses also carry `id`, `createdAt`, `updatedAt` and `status`: `scheduled`, `active`, `expired` or `disabled`, computed at request time. `startAt`, `endAt` and `durationSeconds` are `null` when they do not apply; leave them out when sending a timer back, as `null` is rejected.
 
+A fixed timer's start cannot be in the past. On create, and on an update that changes `startAt`, a value more than 60 seconds before the server's clock is a `400 VALIDATION_ERROR` on `startAt`. An unchanged `startAt` is always accepted, so a running or expired timer can still be edited, disabled and enabled.
+
 `:id` is 24 hexadecimal characters.
 
 ## Endpoints
