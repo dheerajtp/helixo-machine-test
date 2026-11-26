@@ -98,39 +98,14 @@ Stop the dev server with Ctrl+C. The backend drains requests for up to 10 s, clo
 
 ## 9. Timer dashboard (owner, manual, plan 05)
 
-Needs sections 5–8 done and `npm run dev` running. The list shows 20 timers per page. Create and Edit are disabled until plan 06 adds the form, so test timers are made from the browser console.
+Needs sections 5–8 done and `npm run dev` running. The list shows 20 timers per page. Timers are made with the form (plan 06, section 10); only paging still uses the browser console.
 
 1. **Open the app.** In the store admin, open the app. The page heading is "Countdown Timer Manager". While the first request runs, a spinner shows.
-2. **Empty state.** With no timers for this shop, the page shows "Create your first timer" with a disabled "Create timer" button.
-3. **Open the app frame's console.** Open DevTools on the admin tab (Chrome: Cmd+Option+J). In the console's context dropdown (top left, default `top`), pick the app's iframe (its URL is your dev tunnel). `typeof shopify.idToken` must print `"function"`; if not, the wrong frame is selected.
-4. **Create two timers.** Paste and run:
-
-   ```js
-   (async () => {
-     const post = async (body) => {
-       const res = await fetch("/api/timers", {
-         method: "POST",
-         headers: { Authorization: `Bearer ${await shopify.idToken()}`, "Content-Type": "application/json" },
-         body: JSON.stringify(body),
-       });
-       console.log(res.status, await res.json());
-     };
-     const now = Date.now();
-     await post({
-       name: "Fixed test", type: "fixed", description: "Ends in 7 days",
-       startAt: new Date(now - 3600e3).toISOString(), endAt: new Date(now + 7 * 864e5).toISOString(),
-       targetType: "all", targetIds: [], appearance: { backgroundColor: "#d72c0d" },
-     });
-     await post({
-       name: "Evergreen test", type: "evergreen", durationSeconds: 1800,
-       targetType: "all", targetIds: [], appearance: { backgroundColor: "#008060" },
-     });
-   })();
-   ```
-
-   Each line must start with `201`. Reload the app page.
+2. **Empty state.** With no timers for this shop, the page shows "Create your first timer" with a "Create timer" button that opens the form.
+3. **Open the app frame's console** (needed only for step 7 and section 10 step 9). Safari: once, turn on Settings > Advanced > "Show features for web developers". On the admin tab press Cmd+Option+C. In the frame menu at the right end of the console's input line, pick the app's frame (its URL is your dev tunnel). `typeof shopify.idToken` must print `"function"`; if not, the wrong frame is selected. Chrome: Cmd+Option+J, then the context dropdown at the top left of the console.
+4. **Create two timers** with the form (section 10, steps 2 and 3): "Fixed test", fixed, start one hour ago, end in 7 days, description "Ends in 7 days", All products; and "Evergreen test", evergreen, 30 minutes, All products.
 5. **List.** Both rows show. "Fixed test": status Active, type Fixed, target "All products", start and end in your local time. "Evergreen test": Active, Evergreen, "30 minutes per visitor". Impressions show 0 (counting arrives in plan 09).
-6. **Disable / Enable.** Open a row's actions menu and pick Disable. A "Timer disabled" toast shows and the badge turns Disabled. Pick Enable: "Timer enabled", badge back to Active. Edit in the menu is disabled.
+6. **Disable / Enable.** Open a row's actions menu and pick Disable. A "Timer disabled" toast shows and the badge turns Disabled. Pick Enable: "Timer enabled", badge back to Active. Edit in the menu opens the form (section 10).
 7. **Paging.** Make 23 more timers (25 in total), then reload:
 
    ```js
@@ -151,7 +126,7 @@ Needs sections 5–8 done and `npm run dev` running. The list shows 20 timers pe
 8. **Search and sort.** Type `fixed` in "Search timers": after a short pause only "Fixed test" shows and you are on page 1. Type `zzz`: "No timers match "zzz"" with a "Clear search" button, which brings the full list back. Switch Sort between oldest and newest: the order flips and paging restarts at page 1.
 9. **Delete.** Pick Delete in a row's menu. A modal asks `Delete "<name>"?`. Cancel closes it and nothing changes. Delete again and confirm: the modal closes, a "Timer deleted" toast shows and the row is gone. While the request runs, the buttons are disabled.
 10. **Delete the last row of a later page.** On page 2 with one row left (delete rows until one remains), delete it: the list goes back to page 1.
-11. **Error state with retry.** In DevTools, Network tab, set throttling to "Offline", then change the sort (or reload the app frame). After the automatic retries (react-query retries 3 times, so allow about 10 s) the page shows "Timers could not be loaded" with a Retry button. Set throttling back to "No throttling" and press Retry: the list returns. Alternative: stop MongoDB with `docker stack rm helixo`; each try then waits for the 5 s server-selection timeout, so allow about 30 s. Start it again with `docker stack deploy -c docker-compose.yml helixo`.
+11. **Error state with retry.** In DevTools (Chrome), Network tab, set throttling to "Offline", then change the sort (or reload the app frame). After the automatic retries (react-query retries 3 times, so allow about 10 s) the page shows "Timers could not be loaded" with a Retry button. Set throttling back to "No throttling" and press Retry: the list returns. If your Safari's Network tab has no offline option, use the alternative. Alternative: stop MongoDB with `docker stack rm helixo`; each try then waits for the 5 s server-selection timeout, so allow about 30 s. Start it again with `docker stack deploy -c docker-compose.yml helixo`.
 12. **Clean up.** Delete the test timers from the list, or keep them for plan 06.
 
 Not yet checked in a real browser (from slice 05/02); watch for these while doing the steps above and report any that fail:
@@ -165,3 +140,45 @@ Not yet checked in a real browser (from slice 05/02); watch for these while doin
 - Toasts show for success and failure.
 - `shopify.idToken()` attaches a working token, and a stale session sends the top window to re-authorize.
 - Known edge: if all rows of a later page are deleted elsewhere and you then open that page without a search, it shows the no-match message with an empty query.
+
+## 10. Timer form (owner, manual, plan 06)
+
+Needs section 9 steps 1–3 working. Compare the modal with `docs/ui/timer-form.png` as you go, also at a narrow window width.
+
+1. **Open and close.** Press "Create timer" in the title bar: a modal "Create New Timer" opens. Press Cancel: it closes with no prompt. Open it again, type a name, then close it with the X, Escape and a click outside (one per try): each time "Discard unsaved changes?" asks. "Keep editing" brings the modal back with the name kept; discarding and reopening shows an empty form.
+2. **Create a fixed timer.** Name "Fixed test", Timer type Fixed. Pick start and end dates; type the times as `9:30 PM` or `21:30`. The line under the dates names your time zone. Leave "Show on" at All products, pick a background color (the hex field follows it, and typing a hex moves the picker), set size, position, urgency notification and minutes. Press "Create timer": the modal closes, a "Timer created" toast shows and the row appears with start and end as you typed them.
+3. **Create an evergreen timer.** Timer type Evergreen: the dates are replaced by Duration and Unit. Enter 30 Minutes and create it. The row shows "30 minutes per visitor".
+4. **Browser validation.** Open the form and press "Create timer" with everything empty: errors show under Timer name, Start and End (date and time). Set end before start: the error shows under End. Evergreen with duration 0: error under Duration. A hex like `12345`: error under the color. While a request runs, pressing the button again does nothing.
+5. **Edit.** In a row's actions menu pick Edit: the modal is titled "Edit Timer", the button says "Save changes", every value is filled in and the timer type cannot be changed. Change the name and save: "Timer saved" toast and the new name in the list. Edit again and close without changes: no prompt.
+6. **Pick products.** Create a timer with "Show on" Specific products. Pressing "Create timer" with nothing picked shows "Select at least one product". Press "Browse products": the Shopify picker opens above the modal. Pick two products: they show as chips with their titles. Open the picker again: the two are preselected; press Cancel in the picker: the chips stay. Remove one chip with its x: the form stays open and no discard prompt shows. Save.
+7. **Selection survives editing.** Edit that timer: "Show on" is Specific products and the chip shows "Product <number>" (titles are not stored; see known issues). Open the picker: the saved product is preselected. Save without changes, edit again: still the same product.
+8. **Collections.** Repeat steps 6 and 7 with Specific collections ("Browse collections", "Collection <number>" on edit). Switch "Show on" from collections to products: the collection chips are cleared.
+9. **Server field errors on screen.** The form checks everything the server checks, so make the browser send bad values once. In the app frame's console (section 9 step 3) run:
+
+   ```js
+   const realFetch = window.fetch;
+   window.fetch = (url, init) => {
+     if (init?.method === "POST") {
+       window.fetch = realFetch; // one request only
+       const body = JSON.parse(init.body);
+       body.name = "x".repeat(101);
+       body.appearance.backgroundColor = "red";
+       if (body.type === "fixed") body.endAt = body.startAt;
+       init = { ...init, body: JSON.stringify(body) };
+     }
+     return realFetch(url, init);
+   };
+   ```
+
+   Fill a valid fixed timer and press "Create timer". The modal stays open with a red banner "Validation failed", the server's messages under Timer name, End and the color field, and your values kept. Press "Create timer" again: it saves (the patch was one-shot).
+10. **Request error banner.** Open Edit on a timer, then delete that timer in another admin tab. Press "Save changes": the banner shows "Timer not found" and the modal stays open.
+11. **Picker failure.** Not needed unless the picker fails to open; then a banner "The picker could not be opened. Try again." shows in the form.
+
+Report any step that fails, and especially these, which no slice could check in a browser:
+
+- The modal layout against `docs/ui/timer-form.png`, on a wide and a narrow window, and on the Shopify mobile app if you use it.
+- Each Polaris field reacts to input: text, number, text area, selects, checkbox, the "Show on" and type choice lists, date picker (it opens inside the modal), color picker.
+- The X, Escape, outside click and Cancel all close the modal and lead to the discard prompt only when something changed.
+- The resource picker opens above the modal, preselects, caps at 100 and cancel keeps the chips; removing a chip moves keyboard focus somewhere sensible.
+- Toasts, focus on open, and screen reader labels.
+

@@ -21,7 +21,7 @@ Master plan: [`../../PLAN.md`](../../PLAN.md) · Builds on: [05](../05-admin-das
 ## Status
 - [x] 01 — Form fields, validation, save
 - [x] 02 — Resource picker
-- [ ] 03 — Acceptance
+- [x] 03 — Acceptance (owner browser checks open)
 
 ## Dependencies and parallel tracks
 | Slice | Prerequisites | Parallel with | Model | Files touched |
