@@ -3,14 +3,17 @@ import { useMutation } from "react-query";
 import { createTimer, updateTimer } from "../../api/timers";
 import {
   buildPayload,
-  clearErrors,
+  changeFields,
   DESCRIPTION_MAX,
   emptyForm,
+  formatTimeField,
   formFromTimer,
   isChanged,
+  leaveField,
   serverErrors,
   validateForm,
 } from "../../utils/timerForm";
+import { useAfterPointer } from "../../utils/useAfterPointer";
 import { useElementEvent } from "../../utils/useElementEvent";
 import { AppearanceFields } from "./AppearanceFields";
 import { BasicFields } from "./BasicFields";
@@ -26,7 +29,7 @@ const FORM_MODAL_ID = "timer-form-modal";
 
 const startState = ({ id, timer }) => {
   const initial = timer ? formFromTimer(timer) : emptyForm();
-  return { id, initial, form: initial, errors: {}, failure: null };
+  return { id, initial, form: initial, edited: [], errors: {}, server: {}, failure: null };
 };
 
 // Create and edit. Stays mounted so the page can open it through modalRef.current.showOverlay().
@@ -34,7 +37,8 @@ export function TimerFormModal({ modalRef, session, onSaved }) {
   const [state, setState] = useState(() => startState(session));
   // Adjusting state during render: a new session starts from a clean form.
   if (state.id !== session.id) setState(startState(session));
-  const { initial, form, errors, failure } = state;
+  const { initial, form, failure } = state;
+  const errors = { ...state.server, ...state.errors };
   const isEdit = Boolean(session.timer);
   const discardRef = useRef(null);
   const savedId = useRef(null);
@@ -51,7 +55,8 @@ export function TimerFormModal({ modalRef, session, onSaved }) {
         const { fields, other } = serverErrors(error.details);
         setState((current) => ({
           ...current,
-          errors: fields,
+          errors: {},
+          server: fields,
           failure: [error.message || "Timer could not be saved", ...other].join(". "),
         }));
         // It may have been closed while saving.
@@ -60,17 +65,19 @@ export function TimerFormModal({ modalRef, session, onSaved }) {
     }
   );
 
-  const change = (changes) =>
-    setState((current) => ({
-      ...current,
-      form: { ...current.form, ...changes },
-      errors: clearErrors(current.errors, changes),
-    }));
+  const change = (changes) => setState((current) => changeFields(current, changes, session.timer));
+
+  const afterPointer = useAfterPointer();
+  const leave = (field) => {
+    setState((current) => formatTimeField(current, field));
+    // An error shown during a click would move Cancel or X from under the pointer.
+    afterPointer(() => setState((current) => leaveField(current, field, session.timer)));
+  };
 
   const submit = () => {
     if (save.isLoading) return;
     const found = validateForm(form, session.timer);
-    setState((current) => ({ ...current, errors: found, failure: null }));
+    setState((current) => ({ ...current, errors: found, server: {}, failure: null }));
     if (Object.keys(found).length === 0) {
       save.mutate({ timer: session.timer, payload: buildPayload(form, session.timer) });
     }
@@ -84,7 +91,7 @@ export function TimerFormModal({ modalRef, session, onSaved }) {
     else if (isChanged(initial, form)) discardRef.current?.showOverlay();
   });
 
-  const fields = { form, errors, onChange: change };
+  const fields = { form, errors, onChange: change, onLeave: leave };
 
   return (
     <>
@@ -106,6 +113,7 @@ export function TimerFormModal({ modalRef, session, onSaved }) {
             value={form.description}
             error={errors.description}
             onInput={(event) => change({ description: event.currentTarget.value })}
+            onBlur={() => leave("description")}
           ></s-text-area>
           <TargetingFields {...fields} />
           <ColorFields {...fields} />

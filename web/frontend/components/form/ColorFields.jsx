@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { useElementEvent } from "../../utils/useElementEvent";
 
-export function ColorFields({ form, errors, onChange }) {
+export function ColorFields({ form, errors, onChange, onLeave }) {
   const pickerRef = useRef(null);
   const pick = (event) => {
     const { value } = event.currentTarget;
@@ -22,6 +22,7 @@ export function ColorFields({ form, errors, onChange }) {
           value={form.backgroundColor}
           error={errors.backgroundColor}
           onInput={(event) => onChange({ backgroundColor: event.currentTarget.value.trim() })}
+          onBlur={() => onLeave("backgroundColor")}
         ></s-text-field>
       </s-grid>
     </s-stack>

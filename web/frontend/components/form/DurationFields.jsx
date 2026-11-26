@@ -1,9 +1,12 @@
 import { useRef } from "react";
 import { useElementEvent } from "../../utils/useElementEvent";
 
-export function DurationFields({ form, errors, onChange }) {
+export function DurationFields({ form, errors, onChange, onLeave }) {
   const unitRef = useRef(null);
-  useElementEvent(unitRef, "change", (event) => onChange({ durationUnit: event.currentTarget.value }));
+  useElementEvent(unitRef, "change", (event) => {
+    onChange({ durationUnit: event.currentTarget.value });
+    onLeave("durationUnit");
+  });
 
   return (
     <s-grid gridTemplateColumns="1fr 1fr" gap="base">
@@ -15,6 +18,7 @@ export function DurationFields({ form, errors, onChange }) {
         value={form.duration}
         error={errors.duration}
         onInput={(event) => onChange({ duration: event.currentTarget.value })}
+        onBlur={() => onLeave("duration")}
       ></s-number-field>
       <s-select ref={unitRef} label="Unit" value={form.durationUnit}>
         <s-option value="minutes">Minutes</s-option>

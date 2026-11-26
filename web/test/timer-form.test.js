@@ -3,10 +3,14 @@ import assert from "node:assert/strict";
 import { createTimersApi } from "../frontend/api/timers.js";
 import {
   buildPayload,
+  changeFields,
   clearErrors,
   emptyForm,
+  formatTime,
+  formatTimeField,
   formFromTimer,
   isChanged,
+  leaveField,
   parseTime,
   serverErrors,
   toIso,
@@ -214,4 +218,87 @@ test("a new or changed start may not be in the past", () => {
   assert.deepEqual(validateForm(form, running, now), {});
   assert.equal(validateForm({ ...form, startTime: "4:00 AM" }, running, now).startDate, past);
   assert.equal(validateForm({ ...form, startDate: "2026-10-31" }, running, now).startDate, past);
+});
+
+const session = (form = emptyForm(NOW)) => ({ form, edited: [], errors: {}, server: {} });
+const type = (state, changes, timer) => changeFields(state, changes, timer, NOW);
+const leave = (state, field, timer) => leaveField(formatTimeField(state, field), field, timer, NOW);
+const enter = (state, field, value, timer) => leave(type(state, { [field]: value }, timer), field, timer);
+
+test("leaving untouched fields shows nothing", () => {
+  let state = session();
+  for (const field of Object.keys(state.form)) state = leave(state, field);
+  assert.deepEqual(state.errors, {});
+  assert.deepEqual(state.form, emptyForm(NOW));
+  // A pre-filled start that has since passed also waits for submit.
+  const later = new Date(NOW.getTime() + 3_600_000);
+  assert.deepEqual(leaveField(session(), "startTime", undefined, later).errors, {});
+});
+
+test("a bad value shows its error on leaving, not while typing, and clears when fixed", () => {
+  for (const [field, bad, good, start] of [
+    ["name", "  ", "Sale"],
+    ["description", "x".repeat(121), "ok"],
+    ["startTime", "9:30 pm,", "9:30 PM"],
+    ["endTime", "23:59 pm", "23:59"],
+    ["duration", "31000000", "5", { type: "evergreen" }],
+    ["backgroundColor", "red", "#000000"],
+    ["urgencyMinutes", "1441", "5"],
+  ]) {
+    const typed = type(session({ ...emptyForm(NOW), ...start }), { [field]: bad });
+    assert.deepEqual(typed.errors, {}, field);
+    const left = leave(typed, field);
+    assert.deepEqual(Object.keys(left.errors), [field]);
+    assert.equal(left.form[field], bad);
+    assert.deepEqual(type(left, { [field]: good }).errors, {}, field);
+  }
+});
+
+test("a unit change rechecks the duration", () => {
+  const empty = session({ ...emptyForm(NOW), type: "evergreen" });
+  assert.deepEqual(enter(empty, "durationUnit", "days").errors, {});
+  const state = enter(enter(empty, "duration", "45"), "durationUnit", "days");
+  assert.ok(state.errors.duration);
+  assert.deepEqual(type(state, { durationUnit: "minutes" }).errors, {});
+});
+
+test("end before start appears once both are complete", () => {
+  let state = enter(session(), "endTime", "9:00 AM");
+  assert.deepEqual(state.errors, {});
+  state = enter(state, "endDate", "2026-11-26");
+  assert.deepEqual(state.errors, { endDate: "End must be after start" });
+  assert.deepEqual(type(state, { startTime: "8:00 AM" }).errors.endDate, undefined);
+
+  const valid = enter(session(), "endDate", "2026-11-27");
+  assert.equal(enter(valid, "startDate", "2026-11-28").errors.endDate, "End must be after start");
+  assert.equal(enter(valid, "startTime", "9:00 AM").errors.startTime, "Start cannot be in the past");
+});
+
+test("a server error stays until its field changes", () => {
+  const state = { ...session(), server: { name: "Taken", endDate: "Bad" } };
+  const next = type(leave(state, "name"), { description: "x" });
+  assert.deepEqual(next.server, state.server);
+  assert.deepEqual(type(next, { name: "Other" }).server, { endDate: "Bad" });
+});
+
+test("times are rewritten as h:mm AM/PM", () => {
+  for (const [text, formatted] of [
+    ["21:30", "9:30 PM"],
+    ["00:05", "12:05 AM"],
+    ["12:00", "12:00 PM"],
+    [" 9:30p.m. ", "9:30 PM"],
+    ["9:30 pm,", "9:30 pm,"],
+    ["23:59 pm", "23:59 pm"],
+    ["", ""],
+  ]) {
+    assert.equal(formatTime(text), formatted, text);
+  }
+});
+
+test("rewriting a time leaves an edit form unchanged and keeps the stored instant", () => {
+  const initial = formFromTimer(stored);
+  const state = enter(session(initial), "startTime", "05:30", stored);
+  assert.ok(!isChanged(initial, state.form));
+  assert.deepEqual(state.errors, {});
+  assert.equal(buildPayload(state.form, stored).startAt, stored.startAt);
 });
