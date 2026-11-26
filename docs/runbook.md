@@ -103,8 +103,8 @@ Needs sections 5–8 done and `npm run dev` running. The list shows 20 timers pe
 1. **Open the app.** In the store admin, open the app. The page heading is "Countdown Timer Manager". While the first request runs, a spinner shows.
 2. **Empty state.** With no timers for this shop, the page shows "Create your first timer" with a "Create timer" button that opens the form.
 3. **Open the app frame's console** (needed only for step 7 and section 10 step 9). Safari: once, turn on Settings > Advanced > "Show features for web developers". On the admin tab press Cmd+Option+C. In the frame menu at the right end of the console's input line, pick the app's frame (its URL is your dev tunnel). `typeof shopify.idToken` must print `"function"`; if not, the wrong frame is selected. Chrome: Cmd+Option+J, then the context dropdown at the top left of the console.
-4. **Create two timers** with the form (section 10, steps 2 and 3): "Fixed test", fixed, start one hour ago, end in 7 days, description "Ends in 7 days", All products; and "Evergreen test", evergreen, 30 minutes, All products.
-5. **List.** Both rows show. "Fixed test": status Active, type Fixed, target "All products", start and end in your local time. "Evergreen test": Active, Evergreen, "30 minutes per visitor". Impressions show 0 (counting arrives in plan 09).
+4. **Create two timers** with the form (section 10, steps 2 and 3): "Fixed test", fixed, keep the pre-filled start (the next 5-minute mark; a past start is refused), end in 7 days, description "Ends in 7 days", All products; and "Evergreen test", evergreen, 30 minutes, All products.
+5. **List.** Both rows show. "Fixed test": status Scheduled, then Active after a reload once the start has passed, type Fixed, target "All products", start and end in your local time. "Evergreen test": Active, Evergreen, "30 minutes per visitor". Impressions show 0 (counting arrives in plan 09).
 6. **Disable / Enable.** Open a row's actions menu and pick Disable. A "Timer disabled" toast shows and the badge turns Disabled. Pick Enable: "Timer enabled", badge back to Active. Edit in the menu opens the form (section 10).
 7. **Paging.** Make 23 more timers (25 in total), then reload:
 
@@ -212,7 +212,7 @@ Needs section 11 working (the endpoint answers through the store). Compare what 
 
 1. **Start.** Run `npm run dev` from the root. Its `predev` step builds the widget into `extensions/countdown-timer/assets/` first; the log shows `Widget size (script + CSS, gzipped): ... KB`. Calling `npx shopify app dev` directly skips that build, and the block then has no script.
 2. **Add the block.** In the store admin go to Online Store > Themes > Customize. Switch the template picker at the top to Products > Default product. In the product information section press Add block > Apps > "Countdown timer", then Save. The block is offered on product templates only. If it is not listed, check that the CLI log says the theme app extension is being served, and use the preview link it prints.
-3. **Create a timer.** In the app, create a fixed timer that is running now with a description, targeting All products (section 10, step 2). Wait up to 60 s for the cache.
+3. **Create a timer.** In the app, create a fixed timer that is running now with a description, targeting All products (section 10, step 2). The start is at least the next 5-minute mark, so wait until it passes, then up to 60 s for the cache.
 4. **Desktop.** Open the storefront in Safari (enter the storefront password once), then a product page. The countdown shows in digit tiles under the product details and ticks every second; days are hidden when zero; text is black or white, whichever reads better on the background. Edit the timer so it ends within its urgency threshold: the urgency effect shows (none with System Settings > Accessibility > Display > Reduce motion on). An evergreen timer starts at its full duration on the first visit and keeps counting across reloads.
 5. **Phone.** Open the same product page on a phone, or in Safari use Develop > Enter Responsive Design Mode (Ctrl+Cmd+R) and pick an iPhone size. The tiles fit the width with no sideways scroll and the description wraps to at most two lines.
 6. **API down.** Stop MongoDB with `docker stack rm helixo` (the app then answers with an error), reload the product page: the product page works normally, the block area stays as an empty space of the same height, and the Web Inspector console (Cmd+Option+C) shows no error from `countdown-timer.js` (the failed `timer` request itself may show in the Network tab). Start MongoDB again with `docker stack deploy -c docker-compose.yml helixo`. Then stop `npm run dev` with Ctrl+C and reload: same result. (If the block disappears entirely once the dev server stops, that is the CLI's preview ending, not the widget; note it.)
@@ -235,3 +235,13 @@ Report any step that fails, and especially these, which no slice could check aga
 - The theme editor: adding, moving and removing the block works without a page reload.
 - The countdown agrees with the server clock to about a second, and a reload within 60 s shows a `304` for `timer` in the Network tab.
 - Quick view or variant changes that re-render the product section.
+
+## 13. No gap without a timer (owner, manual, plan 12)
+
+Needs section 12 working.
+
+1. **Write the data.** In the app, edit any timer and save it once. Targeting is written only after a create, edit or delete.
+2. **Product with a timer.** Open a product the timer targets: the timer shows and the page does not jump.
+3. **Product without a timer.** Change the timer to Specific products, pick one product, save, wait up to 60 s. Open a different product: no empty space where the block is.
+4. **Past start.** In the form, set a fixed timer's start before now: "Start cannot be in the past" shows and nothing is saved. Editing a running timer's name still saves.
+5. **If the gap stays,** copy the `npm run dev` log line with `"Targeting sync failed"` (it holds only the request id and error type) and send it.
