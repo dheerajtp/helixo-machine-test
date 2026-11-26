@@ -111,10 +111,12 @@ Every document carries `shop`, and every query is scoped by it.
 | `/api/*` | 100 | shop (from the verified session) |
 | `GET /proxy/timer` | 300 | shop + shopper IP |
 | `POST /proxy/impressions` | 60 | shop + shopper IP |
+| `GET /proxy/timer`, ceiling | 3000 | shop |
+| `POST /proxy/impressions`, ceiling | 600 | shop |
 
-Over the limit: `429` with `RateLimit` headers. Storefront limits apply only after the signature check. Webhooks and OAuth are not limited.
+Over the limit: `429` with `RateLimit` headers. Storefront limits apply only after the signature check; the shop ceiling counts only requests the per-shopper limit let through. Webhooks and OAuth are not limited.
 
-Limitations: counters are in memory, so they reset on restart and are per process; more than one instance would need a shared store. The shopper IP is the first `X-Forwarded-For` entry. If Shopify passes through a value sent by the browser, a shopper could vary it to avoid the per-IP limit; a per-shop ceiling would close this.
+Limitations: counters are in memory, so they reset on restart and are per process; more than one instance would need a shared store. The shopper IP is the first `X-Forwarded-For` entry. If Shopify passes through a value sent by the browser, a shopper could vary it to avoid the per-IP limit; the shop ceiling still stops them, but can then refuse that shop's real shoppers until the minute resets.
 
 ## Security
 
@@ -143,10 +145,9 @@ See [docs/api.md](docs/api.md).
 - **Not yet verified on a real store:** that untargeted products have no gap, the product page with the app stopped, layout shift, and impression counting through the app proxy.
 - **Not deployed.** `npm run deploy` needs a hosted `application_url`.
 - **Impression counts are indicative:** a determined visitor can invent session ids.
-- **Database backup and restore** scripts are not written yet.
+- **Database backup and restore:** `tools/backup.sh` and `tools/restore-verify.sh` are written and pass their self-check against fakes (`bash tools/mongo/test.sh`), but are not proven until run against the real database ([docs/runbook.md](docs/runbook.md) section 15). Targets and real restores: [docs/operations.md](docs/operations.md).
 - Saved product and collection targets show as numbers when editing, not names (needs Direct API access).
 - Server validation messages use field names and API units.
-- Form validation runs on submit, not as each field is left.
 - Two overlapping edits of one timer: the later one wins.
 - The widget has no live preview in the admin.
 - Port 27017 is published on all interfaces by Docker Swarm; remove the stack when not developing.

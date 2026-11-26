@@ -37,14 +37,14 @@ export const emptyForm = (now = new Date(), start = nextStart(now)) => ({
 });
 
 const pad = (number) => String(number).padStart(2, "0");
+const clock = (hours, minutes) => `${hours % 12 || 12}:${pad(minutes)} ${hours < 12 ? "AM" : "PM"}`;
 
 // UTC ISO string to the browser's local "YYYY-MM-DD" and "h:mm AM".
 export function localDateTime(iso) {
   const date = new Date(iso);
-  const hours = date.getHours();
   return {
     date: `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
-    time: `${hours % 12 || 12}:${pad(date.getMinutes())} ${hours < 12 ? "AM" : "PM"}`,
+    time: clock(date.getHours(), date.getMinutes()),
   };
 }
 
@@ -60,6 +60,12 @@ export function parseTime(text) {
     hours = (hours % 12) + (half === "p" ? 12 : 0);
   }
   return hours < 24 && minutes < 60 ? [hours, minutes] : null;
+}
+
+// A valid time as "h:mm AM/PM", anything else as typed.
+export function formatTime(text) {
+  const time = parseTime(text);
+  return time ? clock(...time) : text;
 }
 
 // Local date and time to a UTC ISO string, or null when either is not valid.
@@ -247,4 +253,42 @@ export function clearErrors(errors, changes) {
     for (const stale of [key, ...(RELATED[key] ?? [])]) delete next[stale];
   }
   return next;
+}
+
+// Live validation. State is { form, edited, errors, server }: errors come from validateForm,
+// server from the API.
+
+// A shown error is rechecked on every change; a server error just goes when its field changes.
+export function changeFields(state, changes, timer, now) {
+  const form = { ...state.form, ...changes };
+  const found = validateForm(form, timer, now);
+  const errors = {};
+  for (const key of Object.keys(state.errors)) if (found[key]) errors[key] = found[key];
+  return {
+    ...state,
+    form,
+    edited: [...new Set([...state.edited, ...Object.keys(changes)])],
+    errors,
+    server: clearErrors(state.server, changes),
+  };
+}
+
+// Rewriting a time is not an edit.
+export function formatTimeField(state, field) {
+  if (!field.endsWith("Time")) return state;
+  return { ...state, form: { ...state.form, [field]: formatTime(state.form[field]) } };
+}
+
+// Shows the errors of a field the merchant has left, and of the fields that depend on it.
+export function leaveField(state, field, timer, now) {
+  const { form, edited } = state;
+  if (!edited.includes(field)) return state;
+  const found = validateForm(form, timer, now);
+  const errors = { ...state.errors };
+  for (const key of [field, ...(RELATED[field] ?? [])]) {
+    // A related field that is empty and was never typed in waits for submit.
+    if (found[key] && (edited.includes(key) || form[key])) errors[key] = found[key];
+    else delete errors[key];
+  }
+  return { ...state, errors };
 }

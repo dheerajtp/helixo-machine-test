@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { useElementEvent } from "../../utils/useElementEvent";
 
-export function UrgencyFields({ form, errors, onChange }) {
+export function UrgencyFields({ form, errors, onChange, onLeave }) {
   const effectRef = useRef(null);
   useElementEvent(effectRef, "change", (event) => onChange({ urgencyEffect: event.currentTarget.value }));
 
@@ -19,6 +19,7 @@ export function UrgencyFields({ form, errors, onChange }) {
         value={form.urgencyMinutes}
         error={errors.urgencyMinutes}
         onInput={(event) => onChange({ urgencyMinutes: event.currentTarget.value })}
+        onBlur={() => onLeave("urgencyMinutes")}
       ></s-number-field>
     </s-grid>
   );

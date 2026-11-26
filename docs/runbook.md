@@ -28,6 +28,7 @@ npm test                  # node:test, specs in web/test/**/*.test.js
 CI=true npm run build     # builds web/frontend
 tools/verify-slice.sh     # lint + all tests; prints LINT: and TESTS: PASS/FAIL
 tools/verify-slice.sh web/test/project.test.js   # lint + only the given specs
+bash tools/mongo/test.sh  # backup and restore scripts against fakes; no Docker, no database
 ```
 
 The frontend build needs `SHOPIFY_API_KEY` or `CI` set; without either it stops on purpose (template `vite.config.js`). For a one-off local build use `CI=true`. Do not write the key into any file.
@@ -149,6 +150,8 @@ Needs section 9 steps 1–3 working. Compare the modal with `docs/ui/timer-form.
 2. **Create a fixed timer.** Name "Fixed test", Timer type Fixed. Pick start and end dates; type the times as `9:30 PM` or `21:30`. The line under the dates names your time zone. Leave "Show on" at All products, pick a background color (the hex field follows it, and typing a hex moves the picker), set size, position, urgency notification and minutes. Press "Create timer": the modal closes, a "Timer created" toast shows and the row appears with start and end as you typed them.
 3. **Create an evergreen timer.** Timer type Evergreen: the dates are replaced by Duration and Unit. Enter 30 Minutes and create it. The row shows "30 minutes per visitor".
 4. **Browser validation.** Open the form and press "Create timer" with everything empty: errors show under Timer name, Start and End (date and time). Set end before start: the error shows under End. Evergreen with duration 0: error under Duration. A hex like `12345`: error under the color. While a request runs, pressing the button again does nothing.
+
+   **Errors on leaving a field (plan 11).** Open a new form: no errors show until you press a button. Type a name, delete it and press Tab: "Timer name" shows its error. Type a name again: the error clears at once. Type `21:30` in a time field and press Tab: it becomes `9:30 PM`. Type `9:30 pm,` and press Tab: the text stays as typed and "Enter a time like 9:30 PM or 21:30" shows; do the same with `23:59 pm`. Fix the time: the error clears. With an error showing, press Cancel or X: the modal closes on the first click.
 5. **Edit.** In a row's actions menu pick Edit: the modal is titled "Edit Timer", the button says "Save changes", every value is filled in and the timer type cannot be changed. Change the name and save: "Timer saved" toast and the new name in the list. Edit again and close without changes: no prompt.
 6. **Pick products.** Create a timer with "Show on" Specific products. Pressing "Create timer" with nothing picked shows "Select at least one product". Press "Browse products": the Shopify picker opens above the modal. Pick two products: they show as chips with their titles. Open the picker again: the two are preselected; press Cancel in the picker: the chips stay. Remove one chip with its x: the form stays open and no discard prompt shows. Save.
 7. **Selection survives editing.** Edit that timer: "Show on" is Specific products and the chip shows "Product <number>" (titles are not stored; see known issues). Open the picker: the saved product is preselected. Save without changes, edit again: still the same product.
@@ -256,3 +259,13 @@ Needs section 12 working and a timer showing on a product page.
 4. **Reload.** Reload the product page in that window, then the app: the count is unchanged.
 
 Report if the count does not rise (send the `npm run dev` log lines for `/proxy/impressions`) or rises on reload.
+
+## 15. Backup and restore check (owner, manual, plan 13)
+
+Needs the stack from section 5 running. Details in [operations.md](operations.md).
+
+1. `tools/backup.sh`: prints `backup written: .../backups/countdown-<time>.archive.gz`.
+2. `tools/restore-verify.sh`: prints `restore check passed`.
+3. Check that neither printed a password or username.
+
+Report the full output if either step fails, especially "no collections".

@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { NAME_MAX } from "../../utils/timerForm";
 import { useElementEvent } from "../../utils/useElementEvent";
 
-export function BasicFields({ form, errors, onChange, typeLocked }) {
+export function BasicFields({ form, errors, onChange, onLeave, typeLocked }) {
   const typeRef = useRef(null);
   useElementEvent(typeRef, "change", (event) => onChange({ type: event.currentTarget.values[0] }));
 
@@ -15,6 +15,7 @@ export function BasicFields({ form, errors, onChange, typeLocked }) {
         value={form.name}
         error={errors.name}
         onInput={(event) => onChange({ name: event.currentTarget.value })}
+        onBlur={() => onLeave("name")}
       ></s-text-field>
       <s-choice-list
         ref={typeRef}

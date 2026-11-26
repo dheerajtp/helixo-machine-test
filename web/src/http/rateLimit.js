@@ -7,8 +7,7 @@ const tooMany = (_req, res) =>
 
 // App proxy requests come from Shopify, so the shopper's IP is the first X-Forwarded-For entry.
 // Runs after the signature check sets req.shop; without a usable IP the key is the shop alone.
-// shortcut: trusts the leftmost entry as Shopify forwards it; if Shopify keeps a client-sent
-// X-Forwarded-For, a shopper can rotate it, so add a per-shop ceiling if that is seen.
+// The leftmost entry may be client-sent and rotated; createShopCeiling bounds that.
 const proxyKey = (req) => {
   const ip = req.get("X-Forwarded-For")?.split(",")[0].trim();
   return ip && isIP(ip) ? `${req.shop}|${ipKeyGenerator(ip)}` : req.shop;
@@ -25,6 +24,19 @@ export function createProxyRateLimiter({ limit = 300, skip } = {}) {
     legacyHeaders: false,
     // The header is read deliberately above, not through req.ip and trust proxy.
     validate: { xForwardedForHeader: false },
+    handler: tooMany,
+  });
+}
+
+// Whole shop on one storefront route, whatever the shopper IP. Mount after the signature check and
+// the per-shopper limiter, so requests those refuse do not count. In memory, per app instance.
+export function createShopCeiling(limit) {
+  return rateLimit({
+    windowMs: 60_000,
+    limit,
+    keyGenerator: (req) => req.shop,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
     handler: tooMany,
   });
 }

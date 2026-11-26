@@ -196,7 +196,11 @@ The `signature` is verified with the app's API secret (Shopify library, `signato
 
 ## Rate limit
 
-`GET /proxy/timer`: 300 requests per minute per shop and shopper IP. `POST /proxy/impressions`: 60 per minute per shop and shopper IP, on its own counter, so impressions never use up the timer limit. Both are counted only after the signature passes. The shopper IP is the first `X-Forwarded-For` entry; without a valid one the key is the shop alone. In memory, per process, like the admin limit. Over the limit: `429 RATE_LIMITED` with `RateLimit` headers (draft-8).
+`GET /proxy/timer`: 300 requests per minute per shop and shopper IP. `POST /proxy/impressions`: 60 per minute per shop and shopper IP, on its own counter, so impressions never use up the timer limit. Both are counted only after the signature passes. The shopper IP is the first `X-Forwarded-For` entry; without a valid one the key is the shop alone. 
+
+Each route also has a ceiling for the whole shop, whatever the shopper IP, so rotating `X-Forwarded-For` does not get round the limit: `GET /proxy/timer` 3000 per minute, `POST /proxy/impressions` 600 per minute, counted separately and keyed on the signed shop only. The ceiling is checked after the signature and the per-shopper limit, so requests those refuse do not count towards it. Once a shop reaches it, all its shoppers get `429` on that route until the window resets.
+
+All of these are in memory, per process, like the admin limit. Over any limit: `429 RATE_LIMITED` with `RateLimit` headers (draft-8). A request that reaches the ceiling check carries both policies in `RateLimit` and `RateLimit-Policy`, per-shopper first (for example `"300-in-1min"` then `"3000-in-1min"`); one refused by the per-shopper limit carries only that policy.
 
 ## `GET /proxy/timer` (200)
 
@@ -268,5 +272,5 @@ Other fields are ignored. One impression is counted per `timerId` and `sessionId
 | 401 | `UNAUTHORIZED` | Signature missing, wrong, expired or malformed |
 | 404 | `NOT_FOUND` | No such timer for this shop, including another shop's |
 | 413 | `PAYLOAD_TOO_LARGE` | Body over 1 KB |
-| 429 | `RATE_LIMITED` | More than 60 per minute from this shopper IP |
+| 429 | `RATE_LIMITED` | More than 60 per minute from this shopper IP, or 600 for the shop |
 | 500 | `INTERNAL` | Unexpected error |
