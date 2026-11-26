@@ -1,3 +1,15 @@
+# API
+
+| Endpoint | Used by | Auth |
+| --- | --- | --- |
+| `GET`, `POST /api/timers`; `GET`, `PATCH`, `DELETE /api/timers/:id` | Admin app | Session token |
+| `GET /api/timers/stats` | Admin app | Session token |
+| `GET /proxy/timer`, `POST /proxy/impressions` | Storefront widget, through the app proxy | Shopify proxy signature |
+| `POST /api/webhooks` | Shopify: `app/uninstalled`, `customers/data_request`, `customers/redact`, `shop/redact` | HMAC (bad signature: 401) |
+| `GET /api/auth`, `GET /api/auth/callback` | Shopify OAuth | Shopify library |
+| `GET /health` (liveness), `GET /ready` (503 `NOT_READY` without MongoDB or while shutting down) | Operations | None |
+| `GET /metrics` (Prometheus text) | Operations | `Authorization: Bearer <METRICS_TOKEN>` |
+
 # Admin API: timers
 
 Base path `/api/timers`. Used by the embedded admin app only.
