@@ -5,6 +5,8 @@ export function createTimersApi(request = createClient()) {
   return {
     // query: { limit, cursor, q, sort }
     listTimers: (query, { signal } = {}) => request("/api/timers", { query, signal }),
+    getTimerStats: (ids, { signal } = {}) =>
+      request("/api/timers/stats", { query: { ids: ids.join(",") }, signal }),
     createTimer: (timer, { signal } = {}) =>
       request("/api/timers", { method: "POST", body: timer, signal }),
     updateTimer: (id, changes, { signal } = {}) =>
@@ -13,4 +15,4 @@ export function createTimersApi(request = createClient()) {
   };
 }
 
-export const { listTimers, createTimer, updateTimer, deleteTimer } = createTimersApi();
+export const { listTimers, getTimerStats, createTimer, updateTimer, deleteTimer } = createTimersApi();

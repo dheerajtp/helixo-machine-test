@@ -1,4 +1,5 @@
 import { AppError } from "../http/errors.js";
+import { deleteTimerImpressions } from "../repositories/impressionRepository.js";
 import * as repo from "../repositories/timerRepository.js";
 import { timerFields, timerSchema } from "../validators/timerDocument.js";
 
@@ -110,6 +111,7 @@ export async function updateTimer(shop, id, patch, now = new Date()) {
 
 export async function deleteTimer(shop, id) {
   if (!(await repo.deleteTimer(shop, id))) throw notFound();
+  await deleteTimerImpressions(shop, id);
 }
 
 export async function listTimers(shop, { limit, cursor, q, sort } = {}) {

@@ -1,6 +1,7 @@
 import { sendSuccess } from "../http/responses.js";
 import { createAdminClient } from "../integrations/targetsMetafield.js";
 import { syncTargets } from "../services/targetSyncService.js";
+import { getTimerStats } from "../services/impressionService.js";
 import * as service from "../services/timerService.js";
 
 // app.locals.adminClient and app.locals.logger replace the real ones in tests.
@@ -38,4 +39,9 @@ export async function remove(req, res) {
   await service.deleteTimer(req.shop, req.validated.params.id);
   await sync(req, res);
   sendSuccess(res, { message: "Timer deleted" });
+}
+
+export async function stats(req, res) {
+  const data = await getTimerStats(req.shop, req.validated.query.ids);
+  sendSuccess(res, { message: "Timer stats", data });
 }

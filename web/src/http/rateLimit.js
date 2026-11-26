@@ -14,10 +14,12 @@ const proxyKey = (req) => {
   return ip && isIP(ip) ? `${req.shop}|${ipKeyGenerator(ip)}` : req.shop;
 };
 
-export function createProxyRateLimiter() {
+// Each proxy route group gets its own limiter (own counters); skip leaves a route to another one.
+export function createProxyRateLimiter({ limit = 300, skip } = {}) {
   return rateLimit({
     windowMs: 60_000,
-    limit: 300,
+    limit,
+    ...(skip && { skip }),
     keyGenerator: proxyKey,
     standardHeaders: "draft-8",
     legacyHeaders: false,

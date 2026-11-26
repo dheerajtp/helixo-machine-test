@@ -91,7 +91,42 @@ Body: only the fields to change, at least one. `type` is not allowed. `appearanc
 
 ### `DELETE /api/timers/:id` (200)
 
-Deletes permanently. `data` is `null`.
+Deletes permanently, with its impression counts. `data` is `null`.
+
+### `GET /api/timers/stats` (200)
+
+Impression counts for the dashboard.
+
+| Query | Rules |
+| --- | --- |
+| `ids` | required; comma-separated timer ids (24 hexadecimal characters), at most 50; repeats are counted once |
+
+`data` has one entry per id that is one of the shop's own timers, in the order asked; other shops' and unknown ids are left out. `total` is every impression counted for the timer, `0` when none. `last7Days` is the 7 UTC days ending today, oldest first, with `0` for a day with none.
+
+```json
+{
+  "success": true,
+  "message": "Timer stats",
+  "data": [
+    {
+      "timerId": "665f1c2e9b1e8a0012345678",
+      "total": 42,
+      "last7Days": [
+        { "day": "2030-01-09", "count": 0 },
+        { "day": "2030-01-10", "count": 5 },
+        { "day": "2030-01-11", "count": 3 },
+        { "day": "2030-01-12", "count": 0 },
+        { "day": "2030-01-13", "count": 8 },
+        { "day": "2030-01-14", "count": 6 },
+        { "day": "2030-01-15", "count": 2 }
+      ]
+    }
+  ],
+  "meta": { "requestId": "3f0c2a9e-6f0b-4b8e-9d4e-2a6f1c7b9e10" }
+}
+```
+
+A missing, malformed or over-50 `ids` is `400 VALIDATION_ERROR`.
 
 ## Example
 
@@ -149,7 +184,7 @@ The `signature` is verified with the app's API secret (Shopify library, `signato
 
 ## Rate limit
 
-300 requests per minute per shop and shopper IP, counted only after the signature passes. The shopper IP is the first `X-Forwarded-For` entry; without a valid one the key is the shop alone. In memory, per process, like the admin limit. Over the limit: `429 RATE_LIMITED` with `RateLimit` headers (draft-8).
+`GET /proxy/timer`: 300 requests per minute per shop and shopper IP. `POST /proxy/impressions`: 60 per minute per shop and shopper IP, on its own counter, so impressions never use up the timer limit. Both are counted only after the signature passes. The shopper IP is the first `X-Forwarded-For` entry; without a valid one the key is the shop alone. In memory, per process, like the admin limit. Over the limit: `429 RATE_LIMITED` with `RateLimit` headers (draft-8).
 
 ## `GET /proxy/timer` (200)
 
@@ -196,4 +231,30 @@ An `evergreen` timer has `durationSeconds` (seconds) in place of `endAt`. `serve
 | 401 | `UNAUTHORIZED` | Signature missing, wrong, expired or malformed |
 | 404 | `NOT_FOUND` | Other path under `/proxy` (after the signature check) |
 | 429 | `RATE_LIMITED` | Rate limit exceeded |
+| 500 | `INTERNAL` | Unexpected error |
+
+## `POST /proxy/impressions` (202)
+
+The widget calls `/apps/countdown/impressions` when a timer first becomes visible in a visitor session. Same signature check and shop rules as above; the shop is the signed one.
+
+Body: JSON (`Content-Type: application/json`), at most 1 KB.
+
+| Field | Rules |
+| --- | --- |
+| `timerId` | required; 24 hexadecimal characters; a timer of the signed shop |
+| `sessionId` | required; a UUID the widget makes for the visitor session |
+
+Other fields are ignored. One impression is counted per `timerId` and `sessionId`: a repeat within 24 hours, including concurrent repeats, counts nothing. Either way the answer is `202` with `data: null` and `Cache-Control: no-store`. Counts are per UTC day. Nothing about the visitor is stored but the random session id, which is deleted after 24 hours. The app proxy signs the query, not the body, and visitors can invent session ids, so counts are indicative, not audit-grade; the rate limit and the one-per-session rule are the protection.
+
+```json
+{ "success": true, "message": "Impression accepted", "data": null, "meta": { "requestId": "3f0c2a9e-6f0b-4b8e-9d4e-2a6f1c7b9e10" } }
+```
+
+| Status | Code | When |
+| --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Missing or malformed `timerId` or `sessionId`, malformed JSON |
+| 401 | `UNAUTHORIZED` | Signature missing, wrong, expired or malformed |
+| 404 | `NOT_FOUND` | No such timer for this shop, including another shop's |
+| 413 | `PAYLOAD_TOO_LARGE` | Body over 1 KB |
+| 429 | `RATE_LIMITED` | More than 60 per minute from this shopper IP |
 | 500 | `INTERNAL` | Unexpected error |

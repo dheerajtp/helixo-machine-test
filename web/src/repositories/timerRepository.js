@@ -40,6 +40,20 @@ export async function findTimer(shop, id) {
   return TimerModel.findOne({ shop, _id: id }, PROJECTION).lean();
 }
 
+export async function timerExists(shop, id) {
+  if (!isShop(shop) || !isId(id)) return false;
+  return (await TimerModel.exists({ shop, _id: id })) !== null;
+}
+
+// The ids (as strings) of the given timers that belong to the shop. ids is capped by the caller.
+export async function findTimerIds(shop, ids) {
+  if (!isShop(shop) || !Array.isArray(ids) || !ids.every(isId)) return [];
+  const docs = await TimerModel.find({ shop, _id: { $in: ids } }, { _id: 1 })
+    .limit(ids.length)
+    .lean();
+  return docs.map((doc) => String(doc._id));
+}
+
 export async function replaceTimer(shop, id, data) {
   if (!isShop(shop) || !isId(id)) return null;
   const set = {};

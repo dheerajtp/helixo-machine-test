@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useElementEvent } from "../utils/useElementEvent";
 import { TimerRow } from "./TimerRow";
 
-export function TimerTable({ timers, loading, hasNext, hasPrevious, busy, onNext, onPrevious, onToggle, onEdit, onDelete }) {
+export function TimerTable({ timers, impressions, loading, hasNext, hasPrevious, busy, onNext, onPrevious, onToggle, onEdit, onDelete }) {
   const tableRef = useRef(null);
   useElementEvent(tableRef, "nextpage", onNext);
   useElementEvent(tableRef, "previouspage", onPrevious);
@@ -29,7 +29,7 @@ export function TimerTable({ timers, loading, hasNext, hasPrevious, busy, onNext
       </s-table-header-row>
       <s-table-body>
         {timers.map((timer) => (
-          <TimerRow key={timer.id} timer={timer} busy={busy} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
+          <TimerRow key={timer.id} timer={timer} impressions={impressions[timer.id]} busy={busy} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
         ))}
       </s-table-body>
     </s-table>

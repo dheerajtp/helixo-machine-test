@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { useAppBridge } from "@shopify/app-bridge-react";
-import { deleteTimer, listTimers, updateTimer } from "../api/timers";
+import { deleteTimer, getTimerStats, listTimers, updateTimer } from "../api/timers";
 import { DeleteTimerModal, ListMessage, TimerFilters, TimerFormModal, TimerTable } from "../components";
 import { afterDelete, firstPage, nextPage, previousPage } from "../utils/cursorStack";
 import { listView, shouldRetry } from "../utils/listView";
+import { impressionTotals } from "../utils/impressionTotals";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -46,6 +47,14 @@ export default function HomePage() {
   });
   const timers = list.data?.data ?? [];
   const nextCursor = list.data?.meta?.pagination?.nextCursor ?? null;
+
+  // The "timers" prefix means refetch() below refreshes the counts too.
+  const ids = timers.map((timer) => timer.id);
+  const stats = useQuery(["timers", "stats", ids], ({ signal }) => getTimerStats(ids, { signal }), {
+    enabled: ids.length > 0,
+    retry: shouldRetry,
+  });
+  const totals = impressionTotals(stats);
 
   const refetch = () => queryClient.invalidateQueries("timers");
 
@@ -134,6 +143,7 @@ export default function HomePage() {
         ) : (
           <TimerTable
             timers={timers}
+            impressions={totals}
             loading={list.isFetching}
             hasNext={Boolean(nextCursor)}
             hasPrevious={page.previous.length > 0}

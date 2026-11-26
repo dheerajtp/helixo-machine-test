@@ -18,3 +18,20 @@ export const listQuery = Joi.object({
 })
   // The query parser keeps `q[$ne]` as a literal key, which would otherwise just be stripped.
   .pattern(/\[/, Joi.forbidden());
+
+const MAX_STAT_IDS = 50;
+
+// Comma-separated timer ids, deduplicated and lowercased so they match stored ids.
+export const statsQuery = Joi.object({
+  ids: Joi.string()
+    .max(MAX_STAT_IDS * 25)
+    .pattern(/^[0-9a-f]{24}(,[0-9a-f]{24})*$/i)
+    .required()
+    .custom((value, helpers) => {
+      const ids = [...new Set(value.toLowerCase().split(","))];
+      if (ids.length > MAX_STAT_IDS) {
+        return helpers.message(`"ids" must have at most ${MAX_STAT_IDS} ids`);
+      }
+      return ids;
+    }),
+}).pattern(/\[/, Joi.forbidden());
