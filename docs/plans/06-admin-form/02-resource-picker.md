@@ -21,3 +21,24 @@ F2, F9: run `grep -E '^\| F(2|9) ' docs/plans/06-admin-form/00-README.md`.
 ## Done when
 - `tools/verify-slice.sh` and `CI=true npm run build` pass.
 - Append `## Result`.
+
+## Result
+
+### Changed
+- New: `web/frontend/utils/targets.js`, `web/frontend/components/form/{TargetPicker,TargetChip}.jsx`, `web/test/timer-targets.test.js`.
+- Edited: `components/form/TargetingFields.jsx` (picker plugged in), `components/form/TimerFormModal.jsx` (its `afterhide` handler ignores events from children, so a removed chip cannot trigger the discard confirm), `utils/timerForm.js` (picking or removing clears the `targetIds` error; comment removed).
+- Switching directly or through "All products" to the other kind clears the old list. Products, All products, Products keeps it.
+
+### Titles on edit
+- **No Direct API lookup was added.** `shopify.app.toml` has no `[access.admin] embedded_app_direct_api_access`, and shopify.dev says Direct API access is disabled when it is omitted. So saved targets show "Product <number>" / "Collection <number>".
+- Titles returned by the picker show until the form is next reset. Items preselected and confirmed in the picker get their titles back.
+- Real titles on edit would need that config change (owner approval: it changes app access).
+
+### Checks
+- `tools/verify-slice.sh`: LINT PASS, TESTS PASS (116/116).
+- `CI=true npm run build`: PASS.
+
+### Not checked in a browser or store
+- The resource picker itself: opening above `s-modal`, preselection, cancel, the 100 cap.
+- `s-clickable-chip` `remove` event, chip layout against `docs/ui/timer-form.png`, keyboard focus after removing a chip.
+- Whether chip or nested overlay events reach the modal's `afterhide` listener (guarded by `event.target`).

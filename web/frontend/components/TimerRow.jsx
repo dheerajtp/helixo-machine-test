@@ -1,7 +1,7 @@
 import { scheduleLines, statusBadge, targetText } from "../utils/timerFormat";
 
 // Name, description and the other strings render as text (React escapes them), never as HTML.
-export function TimerRow({ timer, busy, onToggle, onDelete }) {
+export function TimerRow({ timer, busy, onToggle, onEdit, onDelete }) {
   const badge = statusBadge(timer.status);
   const menuId = `timer-menu-${timer.id}`;
 
@@ -34,8 +34,7 @@ export function TimerRow({ timer, busy, onToggle, onDelete }) {
           commandFor={menuId}
         ></s-button>
         <s-menu id={menuId} accessibilityLabel={`Actions for ${timer.name}`}>
-          {/* Edit arrives with the form in plan 06. */}
-          <s-button icon="edit" disabled>
+          <s-button icon="edit" disabled={busy || undefined} onClick={() => onEdit(timer)}>
             Edit
           </s-button>
           <s-button disabled={busy || undefined} onClick={() => onToggle(timer)}>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { deleteTimer, listTimers, updateTimer } from "../api/timers";
-import { DeleteTimerModal, ListMessage, TimerFilters, TimerTable } from "../components";
+import { DeleteTimerModal, ListMessage, TimerFilters, TimerFormModal, TimerTable } from "../components";
 import { afterDelete, firstPage, nextPage, previousPage } from "../utils/cursorStack";
 import { listView, shouldRetry } from "../utils/listView";
 
@@ -17,6 +17,9 @@ export default function HomePage() {
   const [page, setPage] = useState(firstPage);
   const [deleting, setDeleting] = useState(null);
   const modalRef = useRef(null);
+  // A new id on every opening resets the form.
+  const [formSession, setFormSession] = useState({ id: 0, timer: null });
+  const formRef = useRef(null);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -63,6 +66,11 @@ export default function HomePage() {
   });
   const busy = toggle.isLoading || remove.isLoading;
 
+  const openForm = (timer) => {
+    setFormSession(({ id }) => ({ id: id + 1, timer }));
+    formRef.current?.showOverlay();
+  };
+
   const clearSearch = () => {
     setSearch("");
     setQ("");
@@ -98,8 +106,7 @@ export default function HomePage() {
   } else if (view === "first") {
     content = (
       <ListMessage heading="Create your first timer" text="Show shoppers a countdown on your product pages.">
-        {/* Create arrives with the form in plan 06. */}
-        <s-button variant="primary" icon="plus" disabled>
+        <s-button variant="primary" icon="plus" onClick={() => openForm(null)}>
           Create timer
         </s-button>
       </ListMessage>
@@ -134,6 +141,7 @@ export default function HomePage() {
             onNext={() => nextCursor && setPage((current) => nextPage(current, nextCursor))}
             onPrevious={() => setPage(previousPage)}
             onToggle={(timer) => !busy && toggle.mutate({ id: timer.id, enabled: !timer.enabled })}
+            onEdit={openForm}
             onDelete={(timer) => {
               setDeleting(timer);
               modalRef.current?.showOverlay();
@@ -146,11 +154,19 @@ export default function HomePage() {
 
   return (
     <s-page heading="Countdown Timer Manager">
-      <s-button slot="primary-action" variant="primary" icon="plus" disabled>
+      <s-button slot="primary-action" variant="primary" icon="plus" onClick={() => openForm(null)}>
         Create timer
       </s-button>
       <s-paragraph color="subdued">Create and manage countdown timers for your promotions.</s-paragraph>
       {content}
+      <TimerFormModal
+        modalRef={formRef}
+        session={formSession}
+        onSaved={(isEdit) => {
+          toast(isEdit ? "Timer saved" : "Timer created");
+          refetch();
+        }}
+      />
       <DeleteTimerModal
         modalRef={modalRef}
         timer={deleting}

@@ -19,8 +19,8 @@ Master plan: [`../../PLAN.md`](../../PLAN.md) · Builds on: [05](../05-admin-das
 | F8 | **Form fields (owner decision).** Reference fields plus "Timer type" below the name (evergreen shows duration instead of dates) and "Apply to" with the resource picker above the color picker. One color picker (background only; text color is automatic). "Promotion description" is the shopper-facing text. Size Small/Medium/Large. Urgency effect Color pulse / Blinking text / None, with adjustable threshold minutes (default 5). Where F1–F5 differ, this wins. |
 
 ## Status
-- [ ] 01 — Form fields, validation, save
-- [ ] 02 — Resource picker
+- [x] 01 — Form fields, validation, save
+- [x] 02 — Resource picker
 - [ ] 03 — Acceptance
 
 ## Dependencies and parallel tracks
