@@ -104,7 +104,7 @@ Needs sections 5–8 done and `npm run dev` running. The list shows 20 timers pe
 2. **Empty state.** With no timers for this shop, the page shows "Create your first timer" with a "Create timer" button that opens the form.
 3. **Open the app frame's console** (needed only for step 7 and section 10 step 9). Safari: once, turn on Settings > Advanced > "Show features for web developers". On the admin tab press Cmd+Option+C. In the frame menu at the right end of the console's input line, pick the app's frame (its URL is your dev tunnel). `typeof shopify.idToken` must print `"function"`; if not, the wrong frame is selected. Chrome: Cmd+Option+J, then the context dropdown at the top left of the console.
 4. **Create two timers** with the form (section 10, steps 2 and 3): "Fixed test", fixed, keep the pre-filled start (the next 5-minute mark; a past start is refused), end in 7 days, description "Ends in 7 days", All products; and "Evergreen test", evergreen, 30 minutes, All products.
-5. **List.** Both rows show. "Fixed test": status Scheduled, then Active after a reload once the start has passed, type Fixed, target "All products", start and end in your local time. "Evergreen test": Active, Evergreen, "30 minutes per visitor". Impressions show 0 (counting arrives in plan 09).
+5. **List.** Both rows show. "Fixed test": status Scheduled, then Active after a reload once the start has passed, type Fixed, target "All products", start and end in your local time. "Evergreen test": Active, Evergreen, "30 minutes per visitor". Impressions show 0 (counting: section 14).
 6. **Disable / Enable.** Open a row's actions menu and pick Disable. A "Timer disabled" toast shows and the badge turns Disabled. Pick Enable: "Timer enabled", badge back to Active. Edit in the menu opens the form (section 10).
 7. **Paging.** Make 23 more timers (25 in total), then reload:
 
@@ -245,3 +245,14 @@ Needs section 12 working.
 3. **Product without a timer.** Change the timer to Specific products, pick one product, save, wait up to 60 s. Open a different product: no empty space where the block is.
 4. **Past start.** In the form, set a fixed timer's start before now: "Start cannot be in the past" shows and nothing is saved. Editing a running timer's name still saves.
 5. **If the gap stays,** copy the `npm run dev` log line with `"Targeting sync failed"` (it holds only the request id and error type) and send it.
+
+## 14. Impression counts (owner, manual, plan 09)
+
+Needs section 12 working and a timer showing on a product page.
+
+1. **Migrate.** Run `npm run migrate -w shopify-app-template-node` (applies `003-impression-indexes`).
+2. **Restart.** Stop `npm run dev` with Ctrl+C and start it again (it rebuilds the widget).
+3. **Count.** Note the timer's Impressions in the app. Open the product page in a new private window and scroll the timer into view. Reload the app: the count is 1 higher.
+4. **Reload.** Reload the product page in that window, then the app: the count is unchanged.
+
+Report if the count does not rise (send the `npm run dev` log lines for `/proxy/impressions`) or rises on reload.
