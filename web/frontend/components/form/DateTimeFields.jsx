@@ -18,7 +18,7 @@ export function DateTimeFields({ edge, label, form, errors, onChange }) {
       <s-text-field
         label={`${label} time`}
         required
-        placeholder={edge === "start" ? "12:00 AM" : "11:59 PM"}
+        placeholder="e.g. 9:30 PM or 21:30"
         value={form[`${edge}Time`]}
         error={errors[`${edge}Time`]}
         onInput={(event) => onChange({ [`${edge}Time`]: event.currentTarget.value })}

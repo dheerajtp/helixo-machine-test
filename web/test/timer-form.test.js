@@ -180,3 +180,10 @@ test("createTimer posts the timer", async () => {
   await api.createTimer({ name: "Sale" });
   assert.deepEqual(calls, [["/api/timers", { method: "POST", body: { name: "Sale" }, signal: undefined }]]);
 });
+
+test("a new form starts with whole-day times, so only the dates are needed", () => {
+  const form = { ...emptyForm(), name: "Sale", startDate: "2026-11-25", endDate: "2026-11-27" };
+  assert.equal(form.startTime, "12:00 AM");
+  assert.equal(form.endTime, "11:59 PM");
+  assert.deepEqual(validateForm(form), {});
+});
