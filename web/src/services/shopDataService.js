@@ -1,3 +1,4 @@
+import { deleteImpressionsByShop } from "../repositories/impressionRepository.js";
 import { deleteSessionsByShop } from "../repositories/sessionRepository.js";
 import { deleteTimersByShop } from "../repositories/timerRepository.js";
 
@@ -5,5 +6,6 @@ import { deleteTimersByShop } from "../repositories/timerRepository.js";
 // Later plans that store shop data add their repository's delete here.
 export async function redactShop(shop) {
   await deleteTimersByShop(shop);
+  await deleteImpressionsByShop(shop);
   await deleteSessionsByShop(shop);
 }

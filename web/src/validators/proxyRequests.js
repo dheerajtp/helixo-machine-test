@@ -20,3 +20,9 @@ export const timerQuery = Joi.object({
       return ids.map((id) => `gid://shopify/Collection/${id}`);
     }),
 });
+
+// The beacon body (plan 09 I6). sessionId is a random id the widget makes, not personal data.
+export const impressionBody = Joi.object({
+  timerId: Joi.string().hex().length(24).lowercase().required(),
+  sessionId: Joi.string().guid().lowercase().required(),
+}).required();

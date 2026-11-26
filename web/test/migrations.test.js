@@ -5,6 +5,8 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { up, down } from "../migrations/001-session-indexes.js";
 import { TimerModel } from "../src/models/timer.js";
 import * as timerIndexes from "../migrations/002-timer-indexes.js";
+import * as impressionIndexes from "../migrations/003-impression-indexes.js";
+import { ImpressionKeyModel, TimerStatsModel } from "../src/models/impression.js";
 import { migrateDown, migrateUp } from "../scripts/migrate.js";
 
 let replSet;
@@ -63,14 +65,53 @@ test("002: up twice, down twice, names match the model's indexes", async () => {
   assert.deepEqual(await indexNames(db, "timers"), ["_id_"]);
 });
 
+const KEY_INDEXES = ["_id_", "createdAt_1", "shop_1_timerId_1_sessionId_1"];
+const STATS_INDEXES = ["_id_", "shop_1_timerId_1_day_1"];
+const declared = (model) =>
+  model.schema.indexes().map(([key]) => Object.entries(key).flat().join("_"));
+
+test("003: up twice, unique keys and TTL, names match the models, down twice", async () => {
+  const db = client.db("m003");
+  await impressionIndexes.down(db); // no collections yet
+  await impressionIndexes.up(db);
+  await impressionIndexes.up(db);
+  assert.deepEqual(await indexNames(db, "impression_keys"), KEY_INDEXES);
+  assert.deepEqual(await indexNames(db, "timer_stats"), STATS_INDEXES);
+  assert.deepEqual(["_id_", ...declared(ImpressionKeyModel)].sort(), KEY_INDEXES);
+  assert.deepEqual(["_id_", ...declared(TimerStatsModel)].sort(), STATS_INDEXES);
+  const ttl = (await db.collection("impression_keys").indexes()).find((i) => i.name === "createdAt_1");
+  assert.equal(ttl.expireAfterSeconds, 86400);
+
+  const key = { shop: "a.myshopify.com", timerId: 1, sessionId: "s" };
+  await db.collection("impression_keys").insertOne({ ...key });
+  await assert.rejects(db.collection("impression_keys").insertOne({ ...key }), { code: 11000 });
+  const day = { shop: "a.myshopify.com", timerId: 1, day: "2030-01-01" };
+  await db.collection("timer_stats").insertOne({ ...day, count: 1 });
+  await assert.rejects(db.collection("timer_stats").insertOne({ ...day, count: 2 }), {
+    code: 11000,
+  });
+
+  await impressionIndexes.down(db);
+  await impressionIndexes.down(db);
+  assert.deepEqual(await indexNames(db, "impression_keys"), ["_id_"]);
+  assert.deepEqual(await indexNames(db, "timer_stats"), ["_id_"]);
+});
+
 test("runner: up applies once and records it, down reverses the last", async () => {
   const db = client.db("runner");
-  assert.deepEqual(await migrateUp(db), ["001-session-indexes", "002-timer-indexes"]);
+  assert.deepEqual(await migrateUp(db), [
+    "001-session-indexes",
+    "002-timer-indexes",
+    "003-impression-indexes",
+  ]);
   assert.deepEqual(await migrateUp(db), []);
-  assert.equal(await db.collection("migrations").countDocuments(), 2);
+  assert.equal(await db.collection("migrations").countDocuments(), 3);
   assert.deepEqual(await indexNames(db), ["_id_", "id_1", "shop_1_id_1"]);
   assert.deepEqual(await indexNames(db, "timers"), TIMER_INDEXES);
+  assert.deepEqual(await indexNames(db, "timer_stats"), STATS_INDEXES);
 
+  assert.deepEqual(await migrateDown(db), ["003-impression-indexes"]);
+  assert.deepEqual(await indexNames(db, "timer_stats"), ["_id_"]);
   assert.deepEqual(await migrateDown(db), ["002-timer-indexes"]);
   assert.deepEqual(await indexNames(db, "timers"), ["_id_"]);
   assert.deepEqual(await migrateDown(db), ["001-session-indexes"]);
