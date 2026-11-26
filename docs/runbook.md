@@ -87,7 +87,7 @@ Stop the dev server with Ctrl+C. The backend drains requests for up to 10 s, clo
 
 1. **Migrations.** With MongoDB up (section 5), run once: `npm run migrate -w shopify-app-template-node`. It applies pending migrations from `web/migrations/` and records them in the `migrations` collection; running it again does nothing. `npm run migrate -w shopify-app-template-node -- down` reverses the last applied one. The app builds no indexes at boot (`autoIndex` off), so run this before using the app.
 2. **Authorize again.** Sessions now live in MongoDB (`shopify_sessions`); the old SQLite sessions were not migrated. Open the app on the dev store and approve it again. `web/database.sqlite` is no longer used and can be deleted.
-3. **Scopes.** The app asks only for `read_products`. Where the Shopify CLI does not inject it, set `SCOPES=read_products` in `web/config/.env`. The scope change needs re-approval on the dev store. The template's "populate products" demo fails until plan 05 removes it.
+3. **Scopes.** The app asks for `read_products` (and, from plan 07, `write_app_proxy`; see section 11). Where the Shopify CLI does not inject them, set `SCOPES=read_products,write_app_proxy` in `web/config/.env`. The scope change needs re-approval on the dev store. The template's "populate products" demo fails until plan 05 removes it.
 4. **Webhooks.** `app/uninstalled` and the compliance topics (`customers/data_request`, `customers/redact`, `shop/redact`) are declared in `shopify.app.toml` with `uri = "/api/webhooks"`; for local work `npm run dev` should apply them to the dev store using its tunnel URL (not yet verified). Do not run `npm run deploy` until the app has a hosted URL: it resolves `/api/webhooks` against `application_url`, still a placeholder, and Shopify rejects the version. Every delivery is HMAC-verified (bad signature: 401). Check: uninstall the app on the dev store and confirm the shop has no documents left in `shopify_sessions`.
 5. **Rate limit.** `/api/*` allows 100 requests per minute per shop, then 429 `RATE_LIMITED`. Webhooks and OAuth are not limited. The counter is in memory: it resets on restart and is per process, so with more than one instance each one counts separately.
 6. **Network access.** Shopify's network access declaration for the app is set by the owner in the Dev Dashboard; it is not verified here.
@@ -181,4 +181,27 @@ Report any step that fails, and especially these, which no slice could check in 
 - The X, Escape, outside click and Cancel all close the modal and lead to the discard prompt only when something changed.
 - The resource picker opens above the modal, preselects, caps at 100 and cancel keeps the chips; removing a chip moves keyboard focus somewhere sensible.
 - Toasts, focus on open, and screen reader labels.
+
+## 11. Storefront timer API (owner, manual, plan 07)
+
+Needs sections 5–10 done and at least one timer that is enabled and running now (for example "Fixed test" from section 9).
+
+1. **Restart the dev server.** Stop `npm run dev` with Ctrl+C and start it again. `shopify.app.toml` now has an `[app_proxy]` block (`/apps/countdown` on the store forwards to `/proxy` on the app) and the scope `write_app_proxy`; the CLI applies both on start.
+2. **Approve the new scope.** Open the app in the store admin. Shopify asks to approve the changed access (app proxy); approve it. If it does not ask, open the preview URL the CLI prints. Where the CLI does not inject scopes, set `SCOPES=read_products,write_app_proxy` in `web/config/.env` first.
+3. **Find a product id.** In the store admin open a product; the number at the end of the URL (`/admin/products/<number>`) is its id. Use a product your running timer targets (an "All products" timer matches every product).
+4. **Open the endpoint in Safari.** If the dev store has a password, open the storefront once and enter it. Then open `https://<store>.myshopify.com/apps/countdown/timer?productId=<number>` (add `&collectionIds=<number>,<number>` to test collection timers). The page shows JSON: `success: true`, and `data` with exactly `id`, `type`, `endAt` (fixed) or `durationSeconds` (evergreen), `description`, `appearance`, `urgencyEffect`, `urgencyThresholdSeconds`, `serverNow`. No `shop`, `name`, `targetIds`, `startAt` or `enabled`. A product with no running timer gives `data: null`, still 200.
+5. **Check the headers.** Safari: Develop > Show Web Inspector (Cmd+Option+I), Network tab, reload, select the `timer` request, Headers. Check:
+   - Status 200, `Content-Type: application/json`.
+   - `Cache-Control: public, max-age=60` (lower for a fixed timer ending within a minute). Report the exact value if Shopify changed it.
+   - `ETag` present, of the form `"<24 hex>-<number>"` (`"none"` when `data` is null). Report if it is missing.
+   - Reload: the request shows 304 or comes from cache, and `serverNow` in a fresh 200 changes while the `ETag` stays the same.
+6. **Signature check.** Open the backend directly, not through the store: `curl -i "http://localhost:<port>/proxy/timer?productId=1"` (port from the `"msg":"Listening"` log line). It returns 401 `UNAUTHORIZED` with `Cache-Control: no-store`.
+7. **Edit changes the ETag.** Edit the timer in the app (for example its description), wait up to 60 s (the cache), reload the URL: the new description shows and the `ETag` changed.
+
+Report any step that fails, and especially these, which no slice could check against a real store:
+
+- Shopify forwards `/apps/countdown/timer` to `/proxy/timer` with a valid signature (a 401 in step 4 means it does not).
+- Shopify keeps `Cache-Control`, `ETag` and the 304 answer unchanged.
+- The response time shown in the Network tab (the app itself answers in under 5 ms locally; the rest is Shopify and the tunnel).
+- The `X-Forwarded-For` header Shopify sends (only visible in the backend; the per-IP rate limit depends on its first entry).
 

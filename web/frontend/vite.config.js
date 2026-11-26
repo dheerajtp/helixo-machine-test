@@ -58,6 +58,7 @@ export default defineConfig({
       "^/(\\?.*)?$": proxyOptions,
       // The lookahead keeps this app's own source files in ./api/ on the Vite server.
       "^/api(?![^?]*\\.js(\\?|$))(/|(\\?.*)?$)": proxyOptions,
+      "^/proxy(/|(\\?.*)?$)": proxyOptions,
     },
   },
 });
