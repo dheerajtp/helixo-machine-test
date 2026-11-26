@@ -125,6 +125,18 @@ export async function findStorefrontTimer(shop, { productId, collectionIds = [] 
   return doc ?? null;
 }
 
+// The timers that can still show on a product page: enabled and not yet expired.
+export async function listTargetingTimers(shop, now, limit) {
+  if (!isShop(shop)) throw new TypeError("listTargetingTimers needs a string shop");
+  return TimerModel.find(
+    { shop, enabled: true, $or: [{ type: "evergreen" }, { endAt: { $gt: now } }] },
+    { _id: 0, type: 1, targetType: 1, targetIds: 1, startAt: 1, endAt: 1 }
+  )
+    .limit(limit)
+    .maxTimeMS(500)
+    .lean();
+}
+
 export async function deleteTimersByShop(shop) {
   if (!isShop(shop)) return false;
   await TimerModel.deleteMany({ shop });

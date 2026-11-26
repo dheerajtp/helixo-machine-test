@@ -1,10 +1,52 @@
-{%- comment -%} Stays empty until the script fills it; its height is reserved by the stylesheet. {%- endcomment -%}
+{%- comment -%}
+  Stays empty until the script fills it. Only a reserved slot has a size (see the stylesheet), so reserve
+  one when a targeting rule covers this product right now, or when the app has not written the rules yet.
+{%- endcomment -%}
 {%- capture collection_ids -%}
   {%- for collection in product.collections limit: 50 -%}
     {{ collection.id }}{% unless forloop.last %},{% endunless %}
   {%- endfor -%}
 {%- endcapture -%}
-<div class="cdt-slot" data-product-id="{{ product.id | escape }}" data-collection-ids="{{ collection_ids | escape }}"></div>
+{%- liquid
+  assign targets = app.metafields.countdown.targets.value
+  assign reserve = false
+  if targets == nil or targets.rules == nil
+    assign reserve = true
+  else
+    assign now = 'now' | date: '%s' | plus: 0
+    assign product_key = product.id | append: ''
+    comment
+      A for loop stops at 50 iterations and there can be 100 rules, so read them in two halves.
+    endcomment
+    for half in (0..1)
+      assign skip = half | times: 50
+      for rule in targets.rules limit: 50 offset: skip
+        if rule.s != nil and rule.s > now
+          continue
+        endif
+        if rule.e != nil and rule.e <= now
+          continue
+        endif
+        case rule.t
+          when 'all'
+            assign reserve = true
+          when 'products'
+            if rule.ids contains product_key
+              assign reserve = true
+            endif
+          when 'collections'
+            for collection in product.collections limit: 50
+              assign collection_key = collection.id | append: ''
+              if rule.ids contains collection_key
+                assign reserve = true
+              endif
+            endfor
+        endcase
+      endfor
+    endfor
+  endif
+-%}
+<div class="cdt-slot{% if reserve %} cdt-slot--reserve{% endif %}" data-product-id="{{ product.id | escape }}" data-collection-ids="{{ collection_ids | escape }}"></div>
 <script src="{{ 'countdown-timer.js' | asset_url }}" defer></script>
 
 {% schema %}

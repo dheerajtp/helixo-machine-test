@@ -31,10 +31,14 @@ const timer = (overrides) => ({
   ...overrides,
 });
 
+// A Set stands in for classList: both have add() and has().
+const makeSlot = (dataset, ...classes) => ({ dataset, classList: new Set(classes) });
+const reserved = (slot) => slot.classList.has("cdt-slot--reserve");
+
 function setup(data = timer(), { fetch, draw } = {}) {
   const env = { clock: START, requests: 0, draws: [], intervals: new Map(), listeners: {} };
   let nextId = 0;
-  const slot = { dataset: { productId: "1", collectionIds: "2,3" } };
+  const slot = makeSlot({ productId: "1", collectionIds: "2,3" });
   const root = (...slots) => ({ querySelectorAll: () => slots });
   const scope = {
     fetch: async (...args) => {
@@ -62,7 +66,7 @@ function setup(data = timer(), { fetch, draw } = {}) {
 
 test("two blocks share one request", async () => {
   const { env, widget, slot } = setup();
-  const second = { dataset: { ...slot.dataset } };
+  const second = makeSlot({ ...slot.dataset });
   await Promise.all([widget.mount(slot), widget.mount(second), widget.mount(slot)]);
   assert.equal(env.requests, 1);
   assert.equal(env.intervals.size, 2);
@@ -133,4 +137,26 @@ test("a slot unloaded while loading is never drawn into again", async () => {
   await pending;
   assert.deepEqual(env.draws.map(([, props]) => props), [null]);
   assert.equal(env.intervals.size, 0);
+});
+
+test("an unreserved slot is reserved only when a countdown is drawn into it", async () => {
+  const withTimer = setup();
+  await withTimer.widget.mount(withTimer.slot);
+  assert.equal(withTimer.env.draws.length, 1);
+  assert.equal(reserved(withTimer.slot), true);
+
+  for (const data of [null, timer({ endAt: "2020-01-01T00:00:00Z" })]) {
+    const { widget, slot } = setup(data);
+    await widget.mount(slot);
+    assert.equal(reserved(slot), false);
+  }
+});
+
+test("a reserved slot keeps its space when there is no timer", async () => {
+  for (const data of [null, timer({ endAt: "2020-01-01T00:00:00Z" })]) {
+    const { widget } = setup(data);
+    const slot = makeSlot({ productId: "1" }, "cdt-slot--reserve");
+    await widget.mount(slot);
+    assert.equal(reserved(slot), true);
+  }
 });

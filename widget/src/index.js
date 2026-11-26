@@ -67,6 +67,8 @@ export function createWidget(scope, { draw = drawCountdown, now = Date.now } = {
             urgencyEffect: timer.urgencyEffect,
             urgent: isUrgent(remaining, timer.urgencyThresholdSeconds),
           });
+          // A stale page can leave the slot unreserved; it needs its size once something is in it.
+          slot.classList.add("cdt-slot--reserve");
         } catch {
           clear(slot, state);
         }

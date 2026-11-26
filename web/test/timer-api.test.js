@@ -45,6 +45,19 @@ const body = (over = {}) => ({
   ...over,
 });
 
+// Stands in for the Admin GraphQL client; `fail` makes every write fail.
+let writes;
+let logs;
+let fail;
+const adminClient = async (session) => ({
+  request: async (_operation, { variables }) => {
+    if (!variables) return { data: { currentAppInstallation: { id: "gid://x/AppInstallation/1" } } };
+    if (fail) throw new Error(`secret-token ${session.shop}`);
+    writes.push({ shop: session.shop, value: JSON.parse(variables.metafields[0].value) });
+    return { data: { metafieldsSet: { userErrors: [] } } };
+  },
+});
+
 let replSet;
 let server;
 before(async () => {
@@ -62,13 +75,19 @@ after(async () => {
 beforeEach(async () => {
   await collection().deleteMany({});
   server?.close();
-  server = createApp({
+  writes = [];
+  logs = [];
+  fail = false;
+  const app = createApp({
     shopify,
     config: { NODE_ENV: "test", METRICS_TOKEN: "test-metrics-token-123", SHOPIFY_API_KEY: "key" },
     logger: createLogger({ write: () => {} }),
     isShuttingDown: () => false,
     isDbReady: async () => true,
-  }).listen(0);
+  });
+  app.locals.adminClient = adminClient;
+  app.locals.logger = createLogger({ write: (line) => logs.push(line) });
+  server = app.listen(0);
   await once(server, "listening");
 });
 after(() => server?.close());
@@ -214,4 +233,37 @@ test("list pagination meta, search and sort", async () => {
   for (const q of ["", "%20%20"]) {
     assert.equal((await call("get", `?q=${q}`).expect(200)).body.data.length, 3);
   }
+});
+
+test("targeting is rewritten after create, update and delete, and only then", async () => {
+  const { id } = await create();
+  await create({}, B);
+  await call("patch", `/${id}`)
+    .send({ targetType: "products", targetIds: ["gid://shopify/Product/7"] })
+    .expect(200);
+  await call("get", `/${id}`).expect(200);
+  await call("get", "").expect(200);
+  await call("patch", `/${id}`).send({ name: "" }).expect(400);
+  await call("delete", `/${"a".repeat(24)}`).expect(404);
+  await call("delete", `/${id}`).expect(200);
+  assert.deepEqual(
+    writes.map(({ shop, value }) => [shop, value.rules.map((r) => [r.t, r.ids])]),
+    [
+      [A, [["all", []]]],
+      [B, [["all", []]]],
+      [A, [["products", ["7"]]]],
+      [A, []],
+    ]
+  );
+  assert.deepEqual(logs, []);
+});
+
+test("a failed targeting write does not fail the request and logs no data", async () => {
+  fail = true;
+  const { id } = await create();
+  await call("patch", `/${id}`).send({ name: "New" }).expect(200);
+  await call("delete", `/${id}`).expect(200);
+  assert.equal(logs.length, 3);
+  assert.equal(JSON.parse(logs[0]).msg, "Targeting sync failed");
+  assert.doesNotMatch(logs.join(""), /secret-token|shop-a|Sale/);
 });

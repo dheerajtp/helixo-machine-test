@@ -1,7 +1,13 @@
-/* The theme block renders .cdt-slot empty. Its height is the Large size with a two-line
-   description, so nothing moves when the timer arrives. :empty beats themes that hide empty divs. */
-.cdt-slot,
-.cdt-slot:empty {
+/* The theme block renders .cdt-slot empty. A slot it did not reserve takes no space, whatever the
+   theme's empty-element rules say. */
+.cdt-slot:not(.cdt-slot--reserve) {
+  display: none;
+}
+
+/* The height is the Large size with a two-line description, so nothing moves when the timer arrives.
+   :empty beats themes that hide empty divs. */
+.cdt-slot--reserve,
+.cdt-slot--reserve:empty {
   display: flex;
   flex-direction: column;
   justify-content: center;
