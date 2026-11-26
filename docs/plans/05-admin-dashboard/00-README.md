@@ -19,6 +19,7 @@ Master plan: [`../../PLAN.md`](../../PLAN.md) · Builds on: [04](../04-timer-api
 | E9 | **List (owner decision).** Rows follow the reference, with name search and start-date sort, and show each timer's impression count (data arrives in plan 09). Shows 0 until then. |
 | E10 | **Create and Edit** are shown disabled until plan 06 adds the form. |
 | E11 | **Template cleanup.** Remove the product demo (page, card, `/api/products*`, `product-creator.js`), `@shopify/polaris` React, and the template's translation setup and its packages (E1, E7). Add no npm dependency; Polaris web components load from Shopify's CDN. |
+| E12 | **Accepted differences (owner, 2026-11-26).** Loading shows a spinner instead of skeleton lines, and paging shows Polaris arrow buttons instead of "Previous" / "Next" text. |
 
 ## Status
 - [x] 01 — App shell and API client
