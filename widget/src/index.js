@@ -3,6 +3,7 @@ import { h, render } from "preact";
 import { fetchTimer } from "./logic/api.js";
 import { textColor } from "./logic/color.js";
 import { evergreenEndMs } from "./logic/evergreen.js";
+import { watchImpression } from "./logic/impression.js";
 import { fixedEndMs, isUrgent, remainingSeconds, splitTime } from "./logic/time.js";
 import { Countdown } from "./ui/Countdown.jsx";
 
@@ -11,7 +12,7 @@ const drawCountdown = (slot, props) => render(props && h(Countdown, props), slot
 // Nothing here may throw or log: a failure leaves the slot empty and the storefront untouched.
 export function createWidget(scope, { draw = drawCountdown, now = Date.now } = {}) {
   const requests = new Map(); // one request per product for the life of the page
-  const slots = new Map(); // slot element -> { interval }
+  const slots = new Map(); // slot element -> { interval, unwatch }
 
   function load({ productId, collectionIds = "" }) {
     const key = `${productId}:${collectionIds}`;
@@ -37,6 +38,7 @@ export function createWidget(scope, { draw = drawCountdown, now = Date.now } = {
 
   function clear(slot, state) {
     scope.clearInterval(state.interval);
+    state.unwatch?.();
     try {
       draw(slot, null);
     } catch {
@@ -69,6 +71,7 @@ export function createWidget(scope, { draw = drawCountdown, now = Date.now } = {
           });
           // A stale page can leave the slot unreserved; it needs its size once something is in it.
           slot.classList.add("cdt-slot--reserve");
+          state.unwatch ??= watchImpression(scope, slot, timer.id);
         } catch {
           clear(slot, state);
         }

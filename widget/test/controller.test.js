@@ -35,12 +35,13 @@ const timer = (overrides) => ({
 const makeSlot = (dataset, ...classes) => ({ dataset, classList: new Set(classes) });
 const reserved = (slot) => slot.classList.has("cdt-slot--reserve");
 
-function setup(data = timer(), { fetch, draw } = {}) {
+function setup(data = timer(), { fetch, draw, crypto } = {}) {
   const env = { clock: START, requests: 0, draws: [], intervals: new Map(), listeners: {} };
   let nextId = 0;
   const slot = makeSlot({ productId: "1", collectionIds: "2,3" });
   const root = (...slots) => ({ querySelectorAll: () => slots });
   const scope = {
+    crypto,
     fetch: async (...args) => {
       env.requests += 1;
       if (fetch) return fetch(...args);
@@ -158,5 +159,23 @@ test("a reserved slot keeps its space when there is no timer", async () => {
     const slot = makeSlot({ productId: "1" }, "cdt-slot--reserve");
     await widget.mount(slot);
     assert.equal(reserved(slot), true);
+  }
+});
+
+test("a drawn countdown is counted once; an expired or missing timer is not", async () => {
+  for (const [data, expected] of [
+    [timer({ id: "seen" }), 1],
+    [timer({ id: "expired", endAt: "2020-01-01T00:00:00Z" }), 0],
+    [null, 0],
+  ]) {
+    const posts = [];
+    const fetch = async (url, init) => {
+      if (init.method === "POST") posts.push(url);
+      return new Response(JSON.stringify({ success: true, data }));
+    };
+    const { widget, slot, tickAt } = setup(data, { fetch, crypto: { randomUUID: () => "uuid" } });
+    await widget.mount(slot);
+    tickAt(500);
+    assert.equal(posts.length, expected);
   }
 });

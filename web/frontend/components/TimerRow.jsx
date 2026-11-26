@@ -1,7 +1,7 @@
 import { scheduleLines, statusBadge, targetText } from "../utils/timerFormat";
 
 // Name, description and the other strings render as text (React escapes them), never as HTML.
-export function TimerRow({ timer, busy, onToggle, onEdit, onDelete }) {
+export function TimerRow({ timer, impressions, busy, onToggle, onEdit, onDelete }) {
   const badge = statusBadge(timer.status);
   const menuId = `timer-menu-${timer.id}`;
 
@@ -25,7 +25,7 @@ export function TimerRow({ timer, busy, onToggle, onEdit, onDelete }) {
           ))}
         </s-stack>
       </s-table-cell>
-      <s-table-cell>{(timer.impressions ?? 0).toLocaleString()}</s-table-cell>
+      <s-table-cell>{impressions?.toLocaleString() ?? "—"}</s-table-cell>
       <s-table-cell>
         <s-button
           variant="tertiary"
