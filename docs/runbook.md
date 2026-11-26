@@ -37,7 +37,7 @@ CI (`.github/workflows/ci.yml`) runs `npm ci`, lint, test, build and `npm audit 
 
 ## 4. Env files
 
-The backend reads `web/config/.env` at boot (variables already set in the shell win), validates it, and stops with a message naming each missing or invalid variable. The frontend uses `web/frontend/.env`. Each app folder has a names-only `.env.example`. `web/config/` is git-ignored and never committed. There is no root env file. During `shopify app dev` the CLI supplies the Shopify values and `BACKEND_PORT` itself; `web/config/.env` still needs `MONGO_USERNAME`, `MONGO_PASSWORD`, `MONGO_APP_USERNAME`, `MONGO_APP_PASSWORD`, `MONGO_URI` and `METRICS_TOKEN` (16 or more characters).
+The backend reads `web/config/.env` at boot (variables already set in the shell win), validates it, and stops with a message naming each missing or invalid variable. The frontend has no env file to create: Shopify CLI sets its values during `npm run dev`, and a build or hosting without the CLI takes them from the shell. `web/frontend/.env.example` only lists the names and is not loaded. Each app folder has a names-only `.env.example`. `web/config/` is git-ignored and never committed. There is no root env file. During `shopify app dev` the CLI supplies the Shopify values and `BACKEND_PORT` itself; `web/config/.env` still needs `MONGO_USERNAME`, `MONGO_PASSWORD`, `MONGO_APP_USERNAME`, `MONGO_APP_PASSWORD`, `MONGO_URI` and `METRICS_TOKEN` (16 or more characters).
 
 Create the folder, the env file and the MongoDB keyfile once:
 

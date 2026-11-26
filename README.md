@@ -44,6 +44,8 @@ On first run the CLI asks you to log in and pick the app and store. Open the pre
 
 While `shopify app dev` runs, the CLI supplies the Shopify values. `web/config/.env` needs `MONGO_USERNAME`, `MONGO_PASSWORD`, `MONGO_APP_USERNAME`, `MONGO_APP_PASSWORD`, `MONGO_URI` and `METRICS_TOKEN` (16+ characters). The URI has the form `mongodb://APP_USER:APP_PASSWORD@localhost:27017/countdown?replicaSet=rs0&authSource=admin`.
 
+The admin app needs no env file: Shopify CLI sets its values during `npm run dev`. `web/frontend/.env.example` only lists the names, for building or hosting without the CLI (set them in the shell; the file is not loaded).
+
 Use `npm run dev`, not `shopify app dev` directly: the widget bundle is built by the npm script and is not committed. Full instructions and troubleshooting are in [docs/runbook.md](docs/runbook.md).
 
 ## Checks
