@@ -87,7 +87,7 @@ Stop the dev server with Ctrl+C. The backend drains requests for up to 10 s, clo
 
 1. **Migrations.** With MongoDB up (section 5), run once: `npm run migrate -w shopify-app-template-node`. It applies pending migrations from `web/migrations/` and records them in the `migrations` collection; running it again does nothing. `npm run migrate -w shopify-app-template-node -- down` reverses the last applied one. The app builds no indexes at boot (`autoIndex` off), so run this before using the app.
 2. **Authorize again.** Sessions now live in MongoDB (`shopify_sessions`); the old SQLite sessions were not migrated. Open the app on the dev store and approve it again. `web/database.sqlite` is no longer used and can be deleted.
-3. **Scopes.** The app asks only for `read_products`. Where the Shopify CLI does not inject it, set `SCOPES=read_products` in `web/config/.env`. The scope change needs re-approval on the dev store. The template's "populate products" demo fails until plan 05 removes it.
+3. **Scopes.** The app asks for `read_products` (and, from plan 07, `write_app_proxy`; see section 11). Where the Shopify CLI does not inject them, set `SCOPES=read_products,write_app_proxy` in `web/config/.env`. The scope change needs re-approval on the dev store. The template's "populate products" demo fails until plan 05 removes it.
 4. **Webhooks.** `app/uninstalled` and the compliance topics (`customers/data_request`, `customers/redact`, `shop/redact`) are declared in `shopify.app.toml` with `uri = "/api/webhooks"`; for local work `npm run dev` should apply them to the dev store using its tunnel URL (not yet verified). Do not run `npm run deploy` until the app has a hosted URL: it resolves `/api/webhooks` against `application_url`, still a placeholder, and Shopify rejects the version. Every delivery is HMAC-verified (bad signature: 401). Check: uninstall the app on the dev store and confirm the shop has no documents left in `shopify_sessions`.
 5. **Rate limit.** `/api/*` allows 100 requests per minute per shop, then 429 `RATE_LIMITED`. Webhooks and OAuth are not limited. The counter is in memory: it resets on restart and is per process, so with more than one instance each one counts separately.
 6. **Network access.** Shopify's network access declaration for the app is set by the owner in the Dev Dashboard; it is not verified here.
@@ -95,3 +95,153 @@ Stop the dev server with Ctrl+C. The backend drains requests for up to 10 s, clo
 ## 8. Timer indexes (owner, manual, plan 04)
 
 1. **Migrate once.** With MongoDB up (section 5), run `npm run migrate -w shopify-app-template-node` once to build the timer indexes (`002-timer-indexes`: `shop_1__id_-1`, `shop_1_sortAt_1__id_1`, `shop_1_enabled_1_targetType_1`). If section 7 was already run, this applies only `002-timer-indexes`; running it again does nothing. `-- down` drops these three indexes and leaves the timers. Run it before creating timers: the app builds no indexes at boot. The log line `Migrations finished` lists what was applied (`[]` on a repeat run).
+
+## 9. Timer dashboard (owner, manual, plan 05)
+
+Needs sections 5–8 done and `npm run dev` running. The list shows 20 timers per page. Timers are made with the form (plan 06, section 10); only paging still uses the browser console.
+
+1. **Open the app.** In the store admin, open the app. The page heading is "Countdown Timer Manager". While the first request runs, a spinner shows.
+2. **Empty state.** With no timers for this shop, the page shows "Create your first timer" with a "Create timer" button that opens the form.
+3. **Open the app frame's console** (needed only for step 7 and section 10 step 9). Safari: once, turn on Settings > Advanced > "Show features for web developers". On the admin tab press Cmd+Option+C. In the frame menu at the right end of the console's input line, pick the app's frame (its URL is your dev tunnel). `typeof shopify.idToken` must print `"function"`; if not, the wrong frame is selected. Chrome: Cmd+Option+J, then the context dropdown at the top left of the console.
+4. **Create two timers** with the form (section 10, steps 2 and 3): "Fixed test", fixed, keep the pre-filled start (the next 5-minute mark; a past start is refused), end in 7 days, description "Ends in 7 days", All products; and "Evergreen test", evergreen, 30 minutes, All products.
+5. **List.** Both rows show. "Fixed test": status Scheduled, then Active after a reload once the start has passed, type Fixed, target "All products", start and end in your local time. "Evergreen test": Active, Evergreen, "30 minutes per visitor". Impressions show 0 (counting arrives in plan 09).
+6. **Disable / Enable.** Open a row's actions menu and pick Disable. A "Timer disabled" toast shows and the badge turns Disabled. Pick Enable: "Timer enabled", badge back to Active. Edit in the menu opens the form (section 10).
+7. **Paging.** Make 23 more timers (25 in total), then reload:
+
+   ```js
+   (async () => {
+     for (let i = 1; i <= 23; i += 1) {
+       const res = await fetch("/api/timers", {
+         method: "POST",
+         headers: { Authorization: `Bearer ${await shopify.idToken()}`, "Content-Type": "application/json" },
+         body: JSON.stringify({ name: `Paging ${i}`, type: "evergreen", durationSeconds: 600, targetType: "all", targetIds: [], appearance: { backgroundColor: "#202223" } }),
+       });
+       if (res.status !== 201) { console.log(i, res.status, await res.json()); break; }
+     }
+     console.log("done");
+   })();
+   ```
+
+   Page 1 shows 20 rows; Next shows the other 5; Previous returns to page 1 with the same rows. The rate limit is 100 requests per minute, so do not run this more than about three times a minute.
+8. **Search and sort.** Type `fixed` in "Search timers": after a short pause only "Fixed test" shows and you are on page 1. Type `zzz`: "No timers match "zzz"" with a "Clear search" button, which brings the full list back. Switch Sort between oldest and newest: the order flips and paging restarts at page 1.
+9. **Delete.** Pick Delete in a row's menu. A modal asks `Delete "<name>"?`. Cancel closes it and nothing changes. Delete again and confirm: the modal closes, a "Timer deleted" toast shows and the row is gone. While the request runs, the buttons are disabled.
+10. **Delete the last row of a later page.** On page 2 with one row left (delete rows until one remains), delete it: the list goes back to page 1.
+11. **Error state with retry.** In DevTools (Chrome), Network tab, set throttling to "Offline", then change the sort (or reload the app frame). After the automatic retries (react-query retries 3 times, so allow about 10 s) the page shows "Timers could not be loaded" with a Retry button. Set throttling back to "No throttling" and press Retry: the list returns. If your Safari's Network tab has no offline option, use the alternative. Alternative: stop MongoDB with `docker stack rm helixo`; each try then waits for the 5 s server-selection timeout, so allow about 30 s. Start it again with `docker stack deploy -c docker-compose.yml helixo`.
+12. **Clean up.** Delete the test timers from the list, or keep them for plan 06.
+
+Not yet checked in a real browser (from slice 05/02); watch for these while doing the steps above and report any that fail:
+
+- Every Polaris web component renders as in `docs/ui/dashboard-list.png` and `docs/ui/dashboard-states.png`.
+- Table paging: the Previous and Next controls fire (`s-table` `nextpage` / `previouspage` events).
+- The actions menu opens from its button (`s-menu` with `commandFor`).
+- Icons show: `menu-horizontal`, `plus`, `edit`, `delete`.
+- The Sort select reacts to a change (`s-select` `change` event).
+- The delete modal opens and closes (`showOverlay`, `hideOverlay`, `afterhide`).
+- Toasts show for success and failure.
+- `shopify.idToken()` attaches a working token, and a stale session sends the top window to re-authorize.
+- Known edge: if all rows of a later page are deleted elsewhere and you then open that page without a search, it shows the no-match message with an empty query.
+
+## 10. Timer form (owner, manual, plan 06)
+
+Needs section 9 steps 1–3 working. Compare the modal with `docs/ui/timer-form.png` as you go, also at a narrow window width.
+
+1. **Open and close.** Press "Create timer" in the title bar: a modal "Create New Timer" opens. Press Cancel: it closes with no prompt. Open it again, type a name, then close it with the X, Escape and a click outside (one per try): each time "Discard unsaved changes?" asks. "Keep editing" brings the modal back with the name kept; discarding and reopening shows an empty form.
+2. **Create a fixed timer.** Name "Fixed test", Timer type Fixed. Pick start and end dates; type the times as `9:30 PM` or `21:30`. The line under the dates names your time zone. Leave "Show on" at All products, pick a background color (the hex field follows it, and typing a hex moves the picker), set size, position, urgency notification and minutes. Press "Create timer": the modal closes, a "Timer created" toast shows and the row appears with start and end as you typed them.
+3. **Create an evergreen timer.** Timer type Evergreen: the dates are replaced by Duration and Unit. Enter 30 Minutes and create it. The row shows "30 minutes per visitor".
+4. **Browser validation.** Open the form and press "Create timer" with everything empty: errors show under Timer name, Start and End (date and time). Set end before start: the error shows under End. Evergreen with duration 0: error under Duration. A hex like `12345`: error under the color. While a request runs, pressing the button again does nothing.
+5. **Edit.** In a row's actions menu pick Edit: the modal is titled "Edit Timer", the button says "Save changes", every value is filled in and the timer type cannot be changed. Change the name and save: "Timer saved" toast and the new name in the list. Edit again and close without changes: no prompt.
+6. **Pick products.** Create a timer with "Show on" Specific products. Pressing "Create timer" with nothing picked shows "Select at least one product". Press "Browse products": the Shopify picker opens above the modal. Pick two products: they show as chips with their titles. Open the picker again: the two are preselected; press Cancel in the picker: the chips stay. Remove one chip with its x: the form stays open and no discard prompt shows. Save.
+7. **Selection survives editing.** Edit that timer: "Show on" is Specific products and the chip shows "Product <number>" (titles are not stored; see known issues). Open the picker: the saved product is preselected. Save without changes, edit again: still the same product.
+8. **Collections.** Repeat steps 6 and 7 with Specific collections ("Browse collections", "Collection <number>" on edit). Switch "Show on" from collections to products: the collection chips are cleared.
+9. **Server field errors on screen.** The form checks everything the server checks, so make the browser send bad values once. In the app frame's console (section 9 step 3) run:
+
+   ```js
+   const realFetch = window.fetch;
+   window.fetch = (url, init) => {
+     if (init?.method === "POST") {
+       window.fetch = realFetch; // one request only
+       const body = JSON.parse(init.body);
+       body.name = "x".repeat(101);
+       body.appearance.backgroundColor = "red";
+       if (body.type === "fixed") body.endAt = body.startAt;
+       init = { ...init, body: JSON.stringify(body) };
+     }
+     return realFetch(url, init);
+   };
+   ```
+
+   Fill a valid fixed timer and press "Create timer". The modal stays open with a red banner "Validation failed", the server's messages under Timer name, End and the color field, and your values kept. Press "Create timer" again: it saves (the patch was one-shot).
+10. **Request error banner.** Open Edit on a timer, then delete that timer in another admin tab. Press "Save changes": the banner shows "Timer not found" and the modal stays open.
+11. **Picker failure.** Not needed unless the picker fails to open; then a banner "The picker could not be opened. Try again." shows in the form.
+
+Report any step that fails, and especially these, which no slice could check in a browser:
+
+- The modal layout against `docs/ui/timer-form.png`, on a wide and a narrow window, and on the Shopify mobile app if you use it.
+- Each Polaris field reacts to input: text, number, text area, selects, checkbox, the "Show on" and type choice lists, date picker (it opens inside the modal), color picker.
+- The X, Escape, outside click and Cancel all close the modal and lead to the discard prompt only when something changed.
+- The resource picker opens above the modal, preselects, caps at 100 and cancel keeps the chips; removing a chip moves keyboard focus somewhere sensible.
+- Toasts, focus on open, and screen reader labels.
+
+## 11. Storefront timer API (owner, manual, plan 07)
+
+Needs sections 5–10 done and at least one timer that is enabled and running now (for example "Fixed test" from section 9).
+
+1. **Restart the dev server.** Stop `npm run dev` with Ctrl+C and start it again. `shopify.app.toml` now has an `[app_proxy]` block (`/apps/countdown` on the store forwards to `/proxy` on the app) and the scope `write_app_proxy`; the CLI applies both on start.
+2. **Approve the new scope.** Open the app in the store admin. Shopify asks to approve the changed access (app proxy); approve it. If it does not ask, open the preview URL the CLI prints. Where the CLI does not inject scopes, set `SCOPES=read_products,write_app_proxy` in `web/config/.env` first.
+3. **Find a product id.** In the store admin open a product; the number at the end of the URL (`/admin/products/<number>`) is its id. Use a product your running timer targets (an "All products" timer matches every product).
+4. **Open the endpoint in Safari.** If the dev store has a password, open the storefront once and enter it. Then open `https://<store>.myshopify.com/apps/countdown/timer?productId=<number>` (add `&collectionIds=<number>,<number>` to test collection timers). The page shows JSON: `success: true`, and `data` with exactly `id`, `type`, `endAt` (fixed) or `durationSeconds` (evergreen), `description`, `appearance`, `urgencyEffect`, `urgencyThresholdSeconds`, `serverNow`. No `shop`, `name`, `targetIds`, `startAt` or `enabled`. A product with no running timer gives `data: null`, still 200.
+5. **Check the headers.** Safari: Develop > Show Web Inspector (Cmd+Option+I), Network tab, reload, select the `timer` request, Headers. Check:
+   - Status 200, `Content-Type: application/json`.
+   - `Cache-Control: public, max-age=60` (lower for a fixed timer ending within a minute). Report the exact value if Shopify changed it.
+   - `ETag` present, of the form `"<24 hex>-<number>"` (`"none"` when `data` is null). Report if it is missing.
+   - Reload: the request shows 304 or comes from cache, and `serverNow` in a fresh 200 changes while the `ETag` stays the same.
+6. **Signature check.** Open the backend directly, not through the store: `curl -i "http://localhost:<port>/proxy/timer?productId=1"` (port from the `"msg":"Listening"` log line). It returns 401 `UNAUTHORIZED` with `Cache-Control: no-store`.
+7. **Edit changes the ETag.** Edit the timer in the app (for example its description), wait up to 60 s (the cache), reload the URL: the new description shows and the `ETag` changed.
+
+Report any step that fails, and especially these, which no slice could check against a real store:
+
+- Shopify forwards `/apps/countdown/timer` to `/proxy/timer` with a valid signature (a 401 in step 4 means it does not).
+- Shopify keeps `Cache-Control`, `ETag` and the 304 answer unchanged.
+- The response time shown in the Network tab (the app itself answers in under 5 ms locally; the rest is Shopify and the tunnel).
+- The `X-Forwarded-For` header Shopify sends (only visible in the backend; the per-IP rate limit depends on its first entry).
+
+
+## 12. Storefront widget (owner, manual, plan 08)
+
+Needs section 11 working (the endpoint answers through the store). Compare what you see with `docs/ui/widget.png`.
+
+1. **Start.** Run `npm run dev` from the root. Its `predev` step builds the widget into `extensions/countdown-timer/assets/` first; the log shows `Widget size (script + CSS, gzipped): ... KB`. Calling `npx shopify app dev` directly skips that build, and the block then has no script.
+2. **Add the block.** In the store admin go to Online Store > Themes > Customize. Switch the template picker at the top to Products > Default product. In the product information section press Add block > Apps > "Countdown timer", then Save. The block is offered on product templates only. If it is not listed, check that the CLI log says the theme app extension is being served, and use the preview link it prints.
+3. **Create a timer.** In the app, create a fixed timer that is running now with a description, targeting All products (section 10, step 2). The start is at least the next 5-minute mark, so wait until it passes, then up to 60 s for the cache.
+4. **Desktop.** Open the storefront in Safari (enter the storefront password once), then a product page. The countdown shows in digit tiles under the product details and ticks every second; days are hidden when zero; text is black or white, whichever reads better on the background. Edit the timer so it ends within its urgency threshold: the urgency effect shows (none with System Settings > Accessibility > Display > Reduce motion on). An evergreen timer starts at its full duration on the first visit and keeps counting across reloads.
+5. **Phone.** Open the same product page on a phone, or in Safari use Develop > Enter Responsive Design Mode (Ctrl+Cmd+R) and pick an iPhone size. The tiles fit the width with no sideways scroll and the description wraps to at most two lines.
+6. **API down.** Stop MongoDB with `docker stack rm helixo` (the app then answers with an error), reload the product page: the product page works normally, the block area stays as an empty space of the same height, and the Web Inspector console (Cmd+Option+C) shows no error from `countdown-timer.js` (the failed `timer` request itself may show in the Network tab). Start MongoDB again with `docker stack deploy -c docker-compose.yml helixo`. Then stop `npm run dev` with Ctrl+C and reload: same result. (If the block disappears entirely once the dev server stops, that is the CLI's preview ending, not the widget; note it.)
+7. **Measure CLS.** Safari does not report layout shifts, so use Chrome for this step: open the product page, open DevTools (Cmd+Option+J) and paste:
+
+   ```js
+   let cls = 0;
+   new PerformanceObserver((list) => {
+     for (const e of list.getEntries()) if (!e.hadRecentInput) cls += e.value;
+     console.log("CLS", cls.toFixed(4));
+   }).observe({ type: "layout-shift", buffered: true });
+   ```
+
+   Reload the page (paste again after reload) with the timer running, and again with the API down (step 6). Anything the widget causes should keep the value at about 0; a theme's own shifts also count, so compare with the block removed if the number is not 0. Lighthouse (DevTools > Lighthouse > Performance) gives the same figure.
+
+Report any step that fails, and especially these, which no slice could check against a real store:
+
+- Shopify accepts the extension (`shopify.extension.toml`, block schema) and the block can be added on product templates only.
+- The stylesheet applies from first paint (no jump when the timer arrives) and does not clash with the theme.
+- The theme editor: adding, moving and removing the block works without a page reload.
+- The countdown agrees with the server clock to about a second, and a reload within 60 s shows a `304` for `timer` in the Network tab.
+- Quick view or variant changes that re-render the product section.
+
+## 13. No gap without a timer (owner, manual, plan 12)
+
+Needs section 12 working.
+
+1. **Write the data.** In the app, edit any timer and save it once. Targeting is written only after a create, edit or delete.
+2. **Product with a timer.** Open a product the timer targets: the timer shows and the page does not jump.
+3. **Product without a timer.** Change the timer to Specific products, pick one product, save, wait up to 60 s. Open a different product: no empty space where the block is.
+4. **Past start.** In the form, set a fixed timer's start before now: "Start cannot be in the past" shows and nothing is saved. Editing a running timer's name still saves.
+5. **If the gap stays,** copy the `npm run dev` log line with `"Targeting sync failed"` (it holds only the request id and error type) and send it.

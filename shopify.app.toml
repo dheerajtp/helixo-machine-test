@@ -7,7 +7,7 @@ name = "helixo-timer-app"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products"
+scopes = "read_products,write_app_proxy"
 
 [auth]
 redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
@@ -22,6 +22,11 @@ api_version = "2027-01"
   [[webhooks.subscriptions]]
   compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
   uri = "/api/webhooks"
+
+[app_proxy]
+url = "/proxy"
+prefix = "apps"
+subpath = "countdown"
 
 [build]
 automatically_update_urls_on_dev = true

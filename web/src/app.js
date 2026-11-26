@@ -11,6 +11,7 @@ import { createApiRateLimiter } from "./http/rateLimit.js";
 import { requestId } from "./http/requestId.js";
 import { health, ready } from "./ops/health.js";
 import { createMetrics } from "./ops/metrics.js";
+import { createProxyRouter } from "./routes/proxy.js";
 import { createTimersRouter } from "./routes/timers.js";
 import { privacyWebhookHandlers } from "./webhooks/privacy.js";
 
@@ -47,6 +48,10 @@ export function createApp({ shopify, config, logger, isShuttingDown, isDbReady }
   // If you are adding routes outside of the /api path, remember to
   // also add a proxy rule for them in web/frontend/vite.config.js
 
+  // Storefront requests via the Shopify app proxy: signed by Shopify, no session.
+  app.use("/proxy", createProxyRouter(shopify));
+  app.use("/proxy", notFound);
+
   // Token check (401 envelope), the library's session check (its 403 re-authorize stays),
   // req.shop from the session, then the per-shop limit.
   app.use(
@@ -58,38 +63,6 @@ export function createApp({ shopify, config, logger, isShuttingDown, isDbReady }
   );
 
   app.use(express.json({ limit: "32kb" }));
-
-  app.get("/api/products/count", async (_req, res) => {
-    const client = new shopify.api.clients.Graphql({
-      session: res.locals.shopify.session,
-    });
-
-    const countData = await client.request(`
-      query shopifyProductCount {
-        productsCount {
-          count
-        }
-      }
-    `);
-
-    res.status(200).send({ count: countData.data.productsCount.count });
-  });
-
-  app.post("/api/products", async (_req, res) => {
-    let status = 200;
-    let error = null;
-
-    try {
-      // Imported here: it loads shopify.js, which reads the environment at import.
-      const { default: productCreator } = await import("../product-creator.js");
-      await productCreator(res.locals.shopify.session);
-    } catch (e) {
-      console.log(`Failed to process products/create: ${e.message}`);
-      status = 500;
-      error = e.message;
-    }
-    res.status(status).send({ success: status === 200, error });
-  });
 
   app.use("/api/timers", createTimersRouter());
 

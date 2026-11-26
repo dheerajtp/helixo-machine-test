@@ -1,0 +1,157 @@
+/* The theme block renders .cdt-slot empty. A slot it did not reserve takes no space, whatever the
+   theme's empty-element rules say. */
+.cdt-slot:not(.cdt-slot--reserve) {
+  display: none;
+}
+
+/* The height is the Large size with a two-line description, so nothing moves when the timer arrives.
+   :empty beats themes that hide empty divs. */
+.cdt-slot--reserve,
+.cdt-slot--reserve:empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  height: 134px;
+}
+
+.cdt-box,
+.cdt-box * {
+  box-sizing: border-box;
+}
+
+.cdt-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cdt-gap);
+  width: 100%;
+  padding: var(--cdt-pad) 8px;
+  border-radius: 8px;
+  font-family: inherit;
+  text-align: center;
+}
+
+.cdt-box--small {
+  --cdt-pad: 8px;
+  --cdt-gap: 6px;
+  --cdt-text: 9px;
+  --cdt-line: 12px;
+  --cdt-tile-width: 36px;
+  --cdt-tile-height: 36px;
+  --cdt-number: 15px;
+  --cdt-unit: 8px;
+}
+
+.cdt-box--medium {
+  --cdt-pad: 10px;
+  --cdt-gap: 8px;
+  --cdt-text: 12px;
+  --cdt-line: 16px;
+  --cdt-tile-width: 46px;
+  --cdt-tile-height: 48px;
+  --cdt-number: 19px;
+  --cdt-unit: 9px;
+}
+
+.cdt-box--large {
+  --cdt-pad: 15px;
+  --cdt-gap: 8px;
+  --cdt-text: 14px;
+  --cdt-line: 18px;
+  --cdt-tile-width: 58px;
+  --cdt-tile-height: 60px;
+  --cdt-number: 24px;
+  --cdt-unit: 11px;
+}
+
+.cdt-box--bottom {
+  flex-direction: column-reverse;
+}
+
+.cdt-box .cdt-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--cdt-text);
+  font-weight: 700;
+  line-height: var(--cdt-line);
+}
+
+.cdt-tiles {
+  display: flex;
+  justify-content: center;
+  gap: var(--cdt-gap);
+}
+
+.cdt-tile {
+  display: flex;
+  flex: 0 1 var(--cdt-tile-width);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: var(--cdt-tile-height);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.cdt-number {
+  font-size: var(--cdt-number);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.cdt-unit {
+  font-size: var(--cdt-unit);
+  line-height: 1.3;
+}
+
+.cdt-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.cdt-box--colorPulse {
+  animation: cdt-pulse 2s ease-in-out infinite;
+}
+
+/* One fade a second, well under three flashes. */
+.cdt-box--blinkingText .cdt-number {
+  animation: cdt-blink 1s ease-in-out infinite;
+}
+
+@keyframes cdt-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(231, 76, 60, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.5);
+  }
+}
+
+@keyframes cdt-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cdt-box--colorPulse,
+  .cdt-box--blinkingText .cdt-number {
+    animation: none;
+  }
+}

@@ -252,3 +252,31 @@ test("a malformed cursor is a validation error", async () => {
     await assert.rejects(service.listTimers(A, { cursor }), rejectsField("cursor"));
   }
 });
+
+test("a new or changed start may not be in the past", async () => {
+  const now = new Date("2027-03-10T12:00:00.000Z");
+  const at = (minutes) => new Date(now.getTime() + minutes * 60_000).toISOString();
+  const create = (startAt, clock = now) => service.createTimer(A, fixed({ startAt }), clock);
+
+  await create(at(0));
+  await create(at(1));
+  await create(at(-1));
+  for (const startAt of [at(-5), at(-24 * 60)]) {
+    await assert.rejects(create(startAt), rejectsField("startAt"));
+  }
+  assert.equal(await collection().countDocuments(), 3);
+
+  const { id } = await create(at(-30 * 24 * 60), new Date(at(-30 * 24 * 60)));
+  const update = (patch) => service.updateTimer(A, id, patch, now);
+  await update({ name: "Renamed" });
+  await update({ enabled: false });
+  await update({ enabled: true, startAt: at(-30 * 24 * 60) });
+  await assert.rejects(update({ startAt: at(-31 * 24 * 60) }), rejectsField("startAt"));
+  await assert.rejects(update({ startAt: at(-5) }), rejectsField("startAt"));
+  await update({ startAt: at(5) });
+});
+
+test("the real clock is used when none is passed", async () => {
+  const startAt = new Date(Date.now() - 5 * 60_000).toISOString();
+  await assert.rejects(service.createTimer(A, fixed({ startAt })), rejectsField("startAt"));
+});

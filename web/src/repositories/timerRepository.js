@@ -80,6 +80,63 @@ export async function listTimers(shop, { limit, q, sort, after } = {}) {
     .lean();
 }
 
+const STOREFRONT_FIELDS = [
+  "type",
+  "endAt",
+  "durationSeconds",
+  "description",
+  "appearance",
+  "urgencyEffect",
+  "urgencyThresholdSeconds",
+  "updatedAt",
+];
+const TARGET_RANK = ["products", "collections", "all"];
+
+// The one timer a product page shows: enabled and running now, ranked product > collection > all,
+// newest createdAt within a rank. Sorting in the database with $limit 1 keeps a lower rank from
+// winning however many newer timers it has.
+export async function findStorefrontTimer(shop, { productId, collectionIds = [] }, now = new Date()) {
+  const ids = Array.isArray(collectionIds) ? collectionIds : [];
+  if (!isShop(shop) || typeof productId !== "string" || !ids.every((c) => typeof c === "string")) {
+    return null;
+  }
+  const [doc] = await TimerModel.aggregate([
+    {
+      $match: {
+        shop,
+        enabled: true,
+        $and: [
+          {
+            $or: [
+              { targetType: "all" },
+              { targetType: "products", targetIds: productId },
+              { targetType: "collections", targetIds: { $in: ids } },
+            ],
+          },
+          { $or: [{ type: "evergreen" }, { startAt: { $lte: now }, endAt: { $gt: now } }] },
+        ],
+      },
+    },
+    { $addFields: { rank: { $indexOfArray: [TARGET_RANK, "$targetType"] } } },
+    { $sort: { rank: 1, createdAt: -1, _id: -1 } },
+    { $limit: 1 },
+    { $project: Object.fromEntries(STOREFRONT_FIELDS.map((f) => [f, 1])) },
+  ]).option({ maxTimeMS: 500 });
+  return doc ?? null;
+}
+
+// The timers that can still show on a product page: enabled and not yet expired.
+export async function listTargetingTimers(shop, now, limit) {
+  if (!isShop(shop)) throw new TypeError("listTargetingTimers needs a string shop");
+  return TimerModel.find(
+    { shop, enabled: true, $or: [{ type: "evergreen" }, { endAt: { $gt: now } }] },
+    { _id: 0, type: 1, targetType: 1, targetIds: 1, startAt: 1, endAt: 1 }
+  )
+    .limit(limit)
+    .maxTimeMS(500)
+    .lean();
+}
+
 export async function deleteTimersByShop(shop) {
   if (!isShop(shop)) return false;
   await TimerModel.deleteMany({ shop });

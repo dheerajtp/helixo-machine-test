@@ -7,12 +7,14 @@
   "scripts": {
     "shopify": "shopify",
     "build": "npm run build --workspaces --if-present",
+    "predev": "npm run build -w widget",
     "dev": "shopify app dev",
     "info": "shopify app info",
     "generate": "shopify app generate",
+    "predeploy": "npm run build -w widget",
     "deploy": "shopify app deploy",
     "lint": "eslint .",
-    "test": "node --test \"web/test/**/*.test.js\""
+    "test": "node --test \"web/test/**/*.test.js\" \"widget/test/**/*.test.js\""
   },
   "dependencies": {
     "@shopify/cli": "^5.1.0"
@@ -21,6 +23,7 @@
   "workspaces": [
     "web",
     "web/frontend",
+    "widget",
     "extensions/*"
   ],
   "engines": {

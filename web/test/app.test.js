@@ -40,13 +40,6 @@ const shopify = {
         return { dest: `https://${token.slice(6)}` };
       },
     },
-    clients: {
-      Graphql: class {
-        async request() {
-          return { data: { productsCount: { count: 3 } } };
-        }
-      },
-    },
   },
   cspHeaders: () => pass,
   ensureInstalledOnShop: () => (_req, res) => res.status(400).send("No shop"),
@@ -104,12 +97,13 @@ test("/metrics needs the bearer token", async () => {
 });
 
 test("metrics are labelled by route pattern, never by raw path", async () => {
-  await api().get("/api/products/count?x=1").set("Authorization", AUTH).expect(200, { count: 3 });
+  await api().get("/api/timers/raw-id-456?x=1").set("Authorization", AUTH).expect(400);
   await api().get("/api/raw-path-123").set("Authorization", AUTH).expect(404);
   const { text } = await api().get("/metrics").set("Authorization", `Bearer ${TOKEN}`);
-  assert.match(text, /http_request_duration_seconds_count\{[^}]*route="\/api\/products\/count"/);
+  assert.match(text, /http_request_duration_seconds_count\{[^}]*route="\/api\/timers\/:id"/);
   assert.match(text, /http_request_errors_total\{[^}]*route="unmatched",status="404"\} 1/);
   assert.ok(!text.includes("raw-path-123"));
+  assert.ok(!text.includes("raw-id-456"));
 });
 
 test("helmet headers are set without blocking admin framing or adding CORS", async () => {
@@ -136,7 +130,7 @@ test("unknown /api route: 404 envelope, only after session validation", async ()
 
 test("a body over 32kb is rejected", async () => {
   const response = await api()
-    .post("/api/products")
+    .post("/api/timers")
     .set("Authorization", AUTH)
     .send({ x: "a".repeat(33 * 1024) })
     .expect(413);

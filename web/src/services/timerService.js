@@ -4,10 +4,19 @@ import { timerFields, timerSchema } from "../validators/timerDocument.js";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
+// Covers the time between the browser's check (whole minutes) and the request arriving.
+const START_GRACE_MS = 60_000;
 
 const notFound = () => new AppError("NOT_FOUND", "Timer not found");
 const invalid = (field, message) =>
   new AppError("VALIDATION_ERROR", "Validation failed", [{ field, message }]);
+
+// Not a schema rule: stored timers with a past start stay valid.
+function refusePastStart(startAt, now) {
+  if (startAt && startAt.getTime() < now.getTime() - START_GRACE_MS) {
+    throw invalid("startAt", "Start cannot be in the past");
+  }
+}
 
 export function computeStatus(timer, now = new Date()) {
   if (timer.enabled === false) return "disabled";
@@ -58,8 +67,9 @@ function decodeCursor(cursor) {
   return { sortAt, id: match[2] };
 }
 
-export async function createTimer(shop, input) {
+export async function createTimer(shop, input, now = new Date()) {
   const value = validate(input);
+  refusePastStart(value.startAt, now);
   const createdAt = new Date();
   const sortAt = sortKey(value, createdAt);
   return toTimer(await repo.createTimer(shop, { ...value, createdAt, sortAt }));
@@ -71,7 +81,7 @@ export async function getTimer(shop, id) {
   return toTimer(doc);
 }
 
-export async function updateTimer(shop, id, patch) {
+export async function updateTimer(shop, id, patch, now = new Date()) {
   const stored = await repo.findTimer(shop, id);
   if (!stored) throw notFound();
   if (patch.type !== undefined && patch.type !== stored.type) {
@@ -88,6 +98,8 @@ export async function updateTimer(shop, id, patch) {
     merged.appearance = { ...stored.appearance, ...patch.appearance };
   }
   const value = validate(merged);
+  // An unchanged start is accepted, so a running timer can still be edited.
+  if (value.startAt?.getTime() !== stored.startAt?.getTime()) refusePastStart(value.startAt, now);
 
   // The whole document is written, so concurrent PATCHes cannot leave an invalid mix.
   const sortAt = sortKey(value, stored.createdAt);
